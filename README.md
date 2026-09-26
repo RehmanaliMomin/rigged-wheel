@@ -68,8 +68,9 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 - 👆 **Grab it and flick it.** Flick it either way, as hard as you want. A harder flick means a longer spin, but it lands on the same slice.
 - 🔊 **Sound, made live in the browser.** A tick for every slice that passes, a fanfare for praise and a sad trombone for blame. No audio files.
 - 🎉 **Confetti** for praise, and 🤦🙃😬 raining down for blame. Both are switched off for people who turn on reduced motion.
-- 🎛️ **Set it up your way.** Change both names and how many slices each person gets (up to 40 in total). It starts at an even 8 and 8, and the even-split buttons (8 to 40) keep it 50/50. Go 15 to 1 if you want the original meme look.
-- 🔗 **Share links** carry every setting. On phones, **Share** opens the phone's own share menu.
+- 🎛️ **Set it up your way.** Choose how many slices each person gets (up to 40 in total). It starts at an even 8 and 8, and the even-split buttons (8 to 40) keep it 50/50. Go 15 to 1 if you want the original meme look.
+- 🔒 **Bairu always gets the credit, and Husband always gets the blame.** The names are fixed, and a share link can't swap them.
+- 🔗 **Share links** carry the question and slice counts. On phones, **Share** opens the phone's own share menu.
 - 🌗 **Light and dark mode.** It starts out matching your device and remembers your choice.
 
 ## 🧠 How it decides
@@ -132,7 +133,6 @@ Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve star
 | Param | What it sets | Default |
 | :-- | :-- | :-- |
 | `q` | The question | `Who is always right?` |
-| `w` / `l` | Who gets the credit / who gets the blame | `Bairu` / `Husband` |
 | `nw` / `nl` | Number of slices for the credit / blame person (up to 40 in total) | `8` / `8` |
 
 ## 🖥️ Hosting Laya

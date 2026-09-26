@@ -49,7 +49,6 @@ const MAX_SLICES = 40;
 const QUICK_PICKS = [8, 12, 16, 20, 30, 40]; // split evenly between the two names
 const IDEAS_SHOWN = 2; // question ideas shown per kind
 const MAX_QUESTION = 80;
-const MAX_NAME = 20;
 const PALETTE = {
   good: ['#e11d48', '#9f1239'],
   bad: ['#3b82f6', '#1e40af'],
@@ -324,11 +323,9 @@ function readParams() {
 
   return {
     question: text('q', MAX_QUESTION, DEFAULTS.question),
-    good: text('w', MAX_NAME, DEFAULTS.good),
-    bad: text('l', MAX_NAME, DEFAULTS.bad),
     goodCount,
     badCount,
-    fromLink: ['q', 'w', 'l'].some((k) => p.has(k)),
+    fromLink: p.has('q'),
   };
 }
 
@@ -349,8 +346,6 @@ function initialTheme() {
 export default function RiggedWheel() {
   const [initial] = useState(readParams);
   const [question, setQuestion] = useState(initial.question);
-  const [good, setGood] = useState(initial.good);
-  const [bad, setBad] = useState(initial.bad);
   const [goodCount, setGoodCount] = useState(initial.goodCount);
   const [badCount, setBadCount] = useState(initial.badCount);
   const [ideas, setIdeas] = useState(() => pickIdeas());
@@ -387,8 +382,9 @@ export default function RiggedWheel() {
 
   const shownQuestion = question.trim() || DEFAULTS.question;
   const questionKey = shownQuestion.toLowerCase().replace(/\s+/g, ' ');
-  const goodName = good.trim() || DEFAULTS.good;
-  const badName = bad.trim() || DEFAULTS.bad;
+  // Fixed on purpose: praise always goes to the same person, blame to the other.
+  const goodName = DEFAULTS.good;
+  const badName = DEFAULTS.bad;
 
   const liveDecision = decide({
     layaP: laya.status === 'ok' && laya.key === questionKey ? laya.p : null,
@@ -410,13 +406,11 @@ export default function RiggedWheel() {
   const shareUrl = useMemo(() => {
     const params = new URLSearchParams({
       q: shownQuestion,
-      w: goodName,
-      l: badName,
       nw: String(goodCount),
       nl: String(badCount),
     });
     return `${window.location.origin}${window.location.pathname}?${params}`;
-  }, [shownQuestion, goodName, badName, goodCount, badCount]);
+  }, [shownQuestion, goodCount, badCount]);
 
   useLayoutEffect(() => {
     wheelRef.current.style.transform = `rotate(${rotationRef.current}deg)`;
@@ -763,8 +757,6 @@ export default function RiggedWheel() {
 
   function resetSettings() {
     askQuestion(DEFAULTS.question);
-    setGood(DEFAULTS.good);
-    setBad(DEFAULTS.bad);
     setGoodCount(DEFAULTS.goodCount);
     setBadCount(DEFAULTS.badCount);
   }
@@ -1091,29 +1083,6 @@ export default function RiggedWheel() {
                         </button>
                       ))}
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field t={t} label={<Dot color={PALETTE.good[0]}>Gets the credit</Dot>}>
-                      <input
-                        value={good}
-                        maxLength={MAX_NAME}
-                        disabled={spinning}
-                        onChange={(e) => setGood(e.target.value)}
-                        placeholder={DEFAULTS.good}
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field t={t} label={<Dot color={PALETTE.bad[0]}>Gets the blame</Dot>}>
-                      <input
-                        value={bad}
-                        maxLength={MAX_NAME}
-                        disabled={spinning}
-                        onChange={(e) => setBad(e.target.value)}
-                        placeholder={DEFAULTS.bad}
-                        className={inputClass}
-                      />
-                    </Field>
                   </div>
 
                   <div>
