@@ -37,6 +37,8 @@ import {
 const LAYA_URL = (import.meta.env?.VITE_LAYA_URL || '').replace(/\/+$/, '');
 const LAYA_TIMEOUT_MS = 12000;
 const RULE_WEIGHT = 1; // how hard each matching word nudges Laya's answer (in log-odds)
+const DUTY_WEIGHT = 3; // "who should respect…" is a taunt; strong enough to overrule Laya
+const PRIVILEGE_WEIGHT = 2; // "who should pick…" is a perk
 
 const DEFAULTS = {
   question: 'Who is always right?',
@@ -73,6 +75,8 @@ const SUGGESTIONS = {
     'Who is smarter?',
     'Who gives the best hugs?',
     'Who wins every argument?',
+    'Who should we listen to?',
+    'Who should be in charge?',
   ],
   blame: [
     'Who makes more mistakes?',
@@ -85,6 +89,8 @@ const SUGGESTIONS = {
     'Who hogs the blanket?',
     'Who is always late?',
     'Who is doing the dishes tonight?',
+    'Who should respect the other more?',
+    'Who should apologize first?',
   ],
 };
 const ALL_SUGGESTIONS = [...SUGGESTIONS.credit, ...SUGGESTIONS.blame];
@@ -108,6 +114,13 @@ const WORDS = {
     'scared', 'afraid', 'slow(er|est)?', 'spends?', 'ate', 'fart(s)?',
   ],
 };
+// "Who should / needs to / has to <verb>" puts the answer on the hook, unless the
+// verb is a perk ("who should pick the movie?") or someone else is the subject
+// ("who should we listen to?").
+const MODALS = [['should'], ['must'], ['needs', 'to'], ['need', 'to'], ['has', 'to'], ['have', 'to'], ['ought', 'to'], ['gotta']];
+const OTHER_SUBJECTS = new Set(['we', 'i', 'you', 'they', 'us', 'he', 'she', 'people', 'everyone']);
+const PERK_VERBS = new Set(['get', 'pick', 'choose', 'decide', 'win', 'lead', 'relax', 'rest', 'sleep', 'eat', 'have', 'go', 'sit', 'make', 'plan', 'drive', 'keep', 'own', 'control']);
+const PERK_AFTER_BE = new Set(['in', 'the', 'allowed', 'trusted', 'praised', 'thanked', 'celebrated', 'pampered', 'spoiled']);
 const NEGATORS = new Set(['never', 'not', 'no', 'dont', 'doesnt', 'isnt', 'cant', 'wont', 'didnt', 'arent']);
 const WORD_RES = {
   credit: new RegExp(`^(${WORDS.credit.join('|')})$`),
@@ -261,10 +274,24 @@ function labelSize(slice, text) {
   return Math.max(7, Math.min(24, arc * 0.6, room / (Math.max(text.length, 3) * 0.62)));
 }
 
-// +1 for each praise word, -1 for each blame word; "never"/"not" just before flips it.
+// Reads "who should <verb>…": DUTY_WEIGHT against for a duty, PRIVILEGE_WEIGHT for a perk, else 0.
+function obligationScore(words) {
+  const who = words.findIndex((w) => w === 'who' || w === 'whos');
+  if (who === -1) return 0;
+  const after = words.slice(who + 1);
+  const modal = MODALS.find((m) => m.every((w, i) => after[i] === w));
+  if (!modal) return 0;
+  const [verb, next] = after.slice(modal.length);
+  if (!verb || OTHER_SUBJECTS.has(verb)) return 0;
+  if (PERK_VERBS.has(verb) || (verb === 'be' && PERK_AFTER_BE.has(next))) return PRIVILEGE_WEIGHT;
+  return -DUTY_WEIGHT;
+}
+
+// +1 for each praise word, -1 for each blame word ("never"/"not" just before flips it),
+// plus the "who should…" reading above.
 function wordScore(text) {
   const words = text.toLowerCase().replace(/['’]/g, '').split(/[^a-z]+/).filter(Boolean);
-  let score = 0;
+  let score = obligationScore(words);
   words.forEach((word, i) => {
     const hit = WORD_RES.credit.test(word) ? 1 : WORD_RES.blame.test(word) ? -1 : 0;
     if (!hit) return;
@@ -280,7 +307,8 @@ function decide({ override, layaP, words }) {
   if (override) return { verdict: override, source: 'you' };
   if (layaP != null) {
     const p = 1 / (1 + Math.exp(-(logit(clamp(layaP, 0.001, 0.999)) + RULE_WEIGHT * words)));
-    return { verdict: p >= 0.5 ? 'credit' : 'blame', source: 'laya', layaP };
+    const verdict = p >= 0.5 ? 'credit' : 'blame';
+    return { verdict, source: 'laya', layaP, overruled: verdict !== (layaP >= 0.5 ? 'credit' : 'blame') };
   }
   if (words) return { verdict: words > 0 ? 'credit' : 'blame', source: 'words' };
   return { verdict: 'credit', source: 'default' };
@@ -750,6 +778,13 @@ export default function RiggedWheel() {
   } else if (layaThinking) {
     verdictIcon = <LoaderCircle className="h-4 w-4 animate-spin" />;
     verdictText = <>Laya is reading the question…</>;
+  } else if (decision.overruled) {
+    verdictIcon = <BookOpen className="h-4 w-4" />;
+    verdictText = (
+      <>
+        Laya said {isCredit ? 'blame' : 'praise'}, but it's {isCredit ? 'a perk' : 'a taunt'}
+      </>
+    );
   } else if (decision.source === 'laya') {
     verdictIcon = <Brain className="h-4 w-4" />;
     verdictText = (
@@ -772,8 +807,10 @@ export default function RiggedWheel() {
       ? LAYA_URL
         ? "Laya didn't answer in time, so the built-in word list decided."
         : 'Laya isn\'t connected, so the built-in word list decided.'
-      : decision.source === 'laya'
-        ? 'Laya scored the question. If it was unsure, the word list tipped it.'
+      : decision.overruled
+        ? 'The word list overruled Laya: "who should…" questions put the answer on the hook (or give them a perk).'
+        : decision.source === 'laya'
+          ? 'Laya scored the question. If it was unsure, the word list tipped it.'
         : undefined;
 
   return (

@@ -34,7 +34,7 @@ Ask something nice and the wheel lands on **Wife**. Ask something embarrassing a
 | [Whose advice should we follow?](https://rehmanalimomin.github.io/rigged-wheel/?q=Whose+advice+should+we+follow%3F) | [Who snores louder?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+snores+louder%3F) |
 | [Who has better taste?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+has+better+taste%3F) | [Who ate the last slice?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+ate+the+last+slice%3F) |
 
-Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). There are 20 more ideas in the app, plus a 🎲 **Surprise me** button.
+Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). There are 24 more ideas in the app, plus a 🎲 **Surprise me** button.
 
 ## 🎬 What it looks like
 
@@ -62,7 +62,7 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). There are 2
 
 - 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame, and the wheel shows its call and how sure it is: *"Laya: sounds like blame · 85% sure → Husband"*.
 - ↔️ **Flip** sends a question to the other person when you disagree with Laya. You can also pick a person yourself under **Who does it land on?**
-- 💡 **20 question ideas**, half praise and half blame, plus 🎲 **Surprise me**.
+- 💡 **24 question ideas**, half praise and half blame, plus 🎲 **Surprise me**.
 - 🎡 **Rigged, but it looks fair.** It picks where to stop first, then spins 5–7 full turns to get there, slowing down over 4–5 seconds.
 - 👆 **Grab it and flick it.** Flick it either way, as hard as you want. A harder flick means a longer spin, but it lands on the same slice.
 - 🔊 **Sound, made live in the browser.** A tick for every slice that passes, a fanfare for praise and a sad trombone for blame. No audio files.
@@ -89,6 +89,7 @@ flowchart LR
 
 - **Laya** gets the question with one instruction: *"Is being picked as the answer a good thing or a bad thing for that person?"* It sends back how likely the answer is praise. It runs on a CPU and answers in about 30 ms.
 - **A built-in word list** (praise words like *right*, *advice*, *better*; blame words like *mistakes*, *snores*, *late*; "never" flips a word) adds a nudge to Laya's answer. That only changes the result when Laya is unsure.
+- **"Who should…" questions are taunts.** When the person picked is the one who *should / needs to / has to* do something ("Who should respect the other more?", "Who needs to listen more?"), the word list overrules Laya and it goes to Husband. Laya alone gets these wrong, because it reads "respect" as a nice word. The exceptions are perks ("Who should *pick* the movie?") and questions where someone else is the subject ("Who should *we* listen to?"), and those stay praise.
 - **Without Laya** (the server is off or slow), the word list decides alone. If it finds no clues, the question counts as praise.
 
 <details>
@@ -96,13 +97,13 @@ flowchart LR
 
 <br />
 
-We tested 47 labelled questions: the 20 in the app plus 27 others. Four ways of wording the instruction to Laya were compared first.
+We tested 67 labelled questions: the ones in the app, plus others, plus 21 "who should / needs to" questions. Seven ways of wording the instruction to Laya were compared first.
 
 | | Correct |
 | :-- | :-: |
-| Laya alone | 44 / 47 |
-| Word list alone | 44 / 47 |
-| **Both together** | **46 / 47** |
+| Laya alone | 54 / 67 |
+| Word list alone | 64 / 67 |
+| **Both together** | **66 / 67** |
 
 The one it still misses is "Who keeps the house together?". The word list was written with these questions in view, so expect it to do a bit worse on questions nobody has tried yet. That's what **Flip** is for.
 
