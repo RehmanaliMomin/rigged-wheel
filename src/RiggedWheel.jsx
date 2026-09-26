@@ -9,7 +9,6 @@ import {
   Copy,
   Dices,
   Hand,
-  Heart,
   Lightbulb,
   LoaderCircle,
   Minus,
@@ -993,7 +992,11 @@ export default function RiggedWheel() {
                 aria-label="Spin the wheel"
                 className={`absolute left-1/2 top-1/2 grid h-[20%] w-[20%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-lg ring-4 transition hover:scale-105 disabled:hover:scale-100 ${t.hub}`}
               >
-                <Heart className={`h-1/2 w-1/2 fill-rose-600 text-rose-600 ${spinning ? 'animate-pulse' : ''}`} />
+                <span
+                  className={`text-[clamp(0.7rem,3.4vw,1.1rem)] font-black tracking-wider text-rose-600 ${spinning ? 'animate-pulse' : ''}`}
+                >
+                  SPIN
+                </span>
               </button>
 
               {/* Pointer */}
