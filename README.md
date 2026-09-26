@@ -1,14 +1,14 @@
 <div align="center">
 
 <a href="https://rehmanalimomin.github.io/rigged-wheel/">
-  <img src="docs/hero.svg" alt="A fair-looking wheel, 8 Wife and 8 Husband slices, spins and lands on Wife." width="100%" />
+  <img src="docs/hero.svg" alt="A fair-looking wheel, 8 Bairu and 8 Husband slices, spins and lands on Bairu." width="100%" />
 </a>
 
 # The Totally Fair Wheel
 
 **Settle any argument with certified randomness.\***
 
-<sub>\*Praise always goes to Wife. Blame always goes to Husband. An AI reads the question to decide which.</sub>
+<sub>\*Praise always goes to Bairu. Blame always goes to Husband. An AI reads the question to decide which.</sub>
 
 <br />
 
@@ -26,9 +26,9 @@
 
 ## 🎯 Type any question, and the wheel knows who it's about
 
-Ask something nice and the wheel lands on **Wife**. Ask something embarrassing and it lands on **Husband**. The wheel is an honest-looking 50/50 split, and it never changes when you change the question. Only the landing is rigged.
+Ask something nice and the wheel lands on **Bairu**. Ask something embarrassing and it lands on **Husband**. The wheel is an honest-looking 50/50 split, and it never changes when you change the question. Only the landing is rigged.
 
-| 💐 Praise, so it's Wife | 🙃 Blame, so it's Husband |
+| 💐 Praise, so it's Bairu | 🙃 Blame, so it's Husband |
 | :-- | :-- |
 | [Who is always right?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+is+always+right%3F) | [Who makes more mistakes?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+makes+more+mistakes%3F) |
 | [Whose advice should we follow?](https://rehmanalimomin.github.io/rigged-wheel/?q=Whose+advice+should+we+follow%3F) | [Who snores louder?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+snores+louder%3F) |
@@ -41,8 +41,8 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="docs/demo-praise.gif" alt="Who is always right? A fair-looking 8 Wife / 8 Husband wheel spins and lands on Wife. Confetti and a fanfare." width="100%" />
-      <br /><sub><b>Praise:</b> 8 × Wife, 8 × Husband. Lands on Wife. Fanfare and confetti.</sub>
+      <img src="docs/demo-praise.gif" alt="Who is always right? A fair-looking 8 Bairu / 8 Husband wheel spins and lands on Bairu. Confetti and a fanfare." width="100%" />
+      <br /><sub><b>Praise:</b> 8 × Bairu, 8 × Husband. Lands on Bairu. Fanfare and confetti.</sub>
     </td>
     <td align="center" width="50%">
       <img src="docs/demo-blame.gif" alt="Who makes more mistakes? The same 50/50 wheel spins and lands on Husband. Facepalm emoji rain." width="100%" />
@@ -61,7 +61,7 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 ## ✨ Features
 
 - 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame, and the wheel shows its call and how sure it is: *"Laya: sounds like blame · 85% sure → Husband"*.
-- 🚫 **No appeals.** There's no way to overrule the wheel or pick the answer yourself. Praise always goes to Wife, and blame always goes to Husband.
+- 🚫 **No appeals.** There's no way to overrule the wheel or pick the answer yourself. Praise always goes to Bairu, and blame always goes to Husband.
 - 💡 **24 question ideas**, half praise and half blame, shown four at a time, plus 🎲 **Surprise me**.
 - ⏳ **Spin waits for Laya.** If you hit Spin while Laya is still reading a new question, the button says *Asking Laya…* and the wheel spins once Laya answers (it waits 2.5 s at most). That way the landing always matches the verdict shown above the wheel.
 - 🎡 **Rigged, but it looks fair.** It picks where to stop first, then spins 5–7 full turns to get there, slowing down over 4–5 seconds.
@@ -78,7 +78,7 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 flowchart LR
     Q([Your question]) --> L{Laya:<br/>praise or blame?}
     W[Word list<br/>right, advice… / mistakes, snores…] -. nudges when Laya is unsure .-> L
-    L -->|praise| G[Aim for a<br/>Wife slice]
+    L -->|praise| G[Aim for a<br/>Bairu slice]
     L -->|blame| B[Aim for a<br/>Husband slice]
     G --> S[Rigged spin on the same<br/>50/50 wheel]
     B --> S
@@ -123,7 +123,7 @@ const offset = direction > 0 ? mod(-angle - from, 360) : mod(from + angle, 360);
 const to     = from + direction * (turns * 360 + offset);   // turns = 5..7
 ```
 
-Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve starts fast and has a long, slow crawl at the end, so the last few ticks feel close. A test script tried 15,600 random spins, covering every Wife/Husband mix up to 40 slices and both verdicts: **0 misses.**
+Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve starts fast and has a long, slow crawl at the end, so the last few ticks feel close. A test script tried 15,600 random spins, covering every Bairu/Husband mix up to 40 slices and both verdicts: **0 misses.**
 
 </details>
 
@@ -132,7 +132,7 @@ Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve star
 | Param | What it sets | Default |
 | :-- | :-- | :-- |
 | `q` | The question | `Who is always right?` |
-| `w` / `l` | Who gets the credit / who gets the blame | `Wife` / `Husband` |
+| `w` / `l` | Who gets the credit / who gets the blame | `Bairu` / `Husband` |
 | `nw` / `nl` | Number of slices for the credit / blame person (up to 40 in total) | `8` / `8` |
 
 ## 🖥️ Hosting Laya

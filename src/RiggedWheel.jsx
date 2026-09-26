@@ -40,7 +40,7 @@ const PRIVILEGE_WEIGHT = 2; // "who should pick…" is a perk
 
 const DEFAULTS = {
   question: 'Who is always right?',
-  good: 'Wife', // gets the credit
+  good: 'Bairu', // gets the credit
   bad: 'Husband', // gets the blame
   goodCount: 8, // an even 50/50 wheel looks fair; it still always lands on the right person
   badCount: 8,
