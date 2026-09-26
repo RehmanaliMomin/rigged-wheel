@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://rehmanalimomin.github.io/rigged-wheel/">
-  <img src="docs/hero.svg" alt="A spinning wheel with fifteen Husband slices and one tiny Wife slice. It lands on Wife." width="100%" />
+  <img src="docs/hero.svg" alt="A fair-looking wheel, 8 Wife and 8 Husband slices, spins and lands on Wife." width="100%" />
 </a>
 
 # The Totally Fair Wheel
@@ -115,7 +115,7 @@ The one it still misses is "Who keeps the house together?". The word list was wr
 
 <br />
 
-The pointer is fixed at 12 o'clock. If the wheel has turned `r` degrees clockwise, the part of the wheel under the pointer is at `−r` (mod 360). To stop on a spot `θ` inside a landing slice, the wheel has to end at a rotation that's the same as `−θ` (mod 360):
+The pointer is fixed at 12 o'clock. If the wheel has turned `r` degrees clockwise, the part of the wheel under the pointer is at `−r` (mod 360). To stop on a spot `θ` inside one of the right person's slices, the wheel has to end at a rotation that's the same as `−θ` (mod 360):
 
 ```js
 const angle  = target.start + (target.end - target.start) * (0.15 + Math.random() * 0.7);
