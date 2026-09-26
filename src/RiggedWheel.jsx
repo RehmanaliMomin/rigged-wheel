@@ -1,14 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
-  ArrowLeftRight,
   BookOpen,
   Brain,
   Check,
   ChevronDown,
   Copy,
   Dices,
-  Hand,
   Lightbulb,
   LoaderCircle,
   Minus,
@@ -297,8 +295,7 @@ function wordScore(text) {
 
 // Laya decides; the word list only tips it when Laya is unsure. Without Laya,
 // the word list decides, and with no clues at all it's praise (the original joke).
-function decide({ override, layaP, words }) {
-  if (override) return { verdict: override, source: 'you' };
+function decide({ layaP, words }) {
   if (layaP != null) {
     const p = 1 / (1 + Math.exp(-(logit(clamp(layaP, 0.001, 0.999)) + RULE_WEIGHT * words)));
     const verdict = p >= 0.5 ? 'credit' : 'blame';
@@ -324,7 +321,6 @@ function readParams() {
   if (Number.isNaN(badCount)) badCount = Number.isNaN(legacyTotal) ? DEFAULTS.badCount : legacyTotal - 1;
   goodCount = clamp(goodCount, 1, MAX_SLICES - 1);
   badCount = clamp(badCount, 1, MAX_SLICES - goodCount);
-  const v = p.get('v');
 
   return {
     question: text('q', MAX_QUESTION, DEFAULTS.question),
@@ -332,7 +328,6 @@ function readParams() {
     bad: text('l', MAX_NAME, DEFAULTS.bad),
     goodCount,
     badCount,
-    override: v === 'credit' || v === 'blame' ? v : null,
     fromLink: ['q', 'w', 'l'].some((k) => p.has(k)),
   };
 }
@@ -359,7 +354,6 @@ export default function RiggedWheel() {
   const [goodCount, setGoodCount] = useState(initial.goodCount);
   const [badCount, setBadCount] = useState(initial.badCount);
   const [ideas, setIdeas] = useState(() => pickIdeas());
-  const [override, setOverride] = useState(initial.override);
   const [laya, setLaya] = useState({ status: 'idle', key: '', p: null });
   const [frozen, setFrozen] = useState(null); // decision locked for the length of a spin
   const [theme, setTheme] = useState(initialTheme);
@@ -397,7 +391,6 @@ export default function RiggedWheel() {
   const badName = bad.trim() || DEFAULTS.bad;
 
   const liveDecision = decide({
-    override,
     layaP: laya.status === 'ok' && laya.key === questionKey ? laya.p : null,
     words: wordScore(shownQuestion),
   });
@@ -406,7 +399,7 @@ export default function RiggedWheel() {
   const answerName = isCredit ? goodName : badName;
   const decoyName = isCredit ? badName : goodName;
   const answerRole = isCredit ? 'good' : 'bad';
-  const layaThinking = !override && laya.key === questionKey && laya.status === 'loading';
+  const layaThinking = laya.key === questionKey && laya.status === 'loading';
 
   const slices = useMemo(() => buildSlices(goodCount, badCount), [goodCount, badCount]);
   const slicesRef = useRef(slices);
@@ -422,9 +415,8 @@ export default function RiggedWheel() {
       nw: String(goodCount),
       nl: String(badCount),
     });
-    if (override) params.set('v', override);
     return `${window.location.origin}${window.location.pathname}?${params}`;
-  }, [shownQuestion, goodName, badName, goodCount, badCount, override]);
+  }, [shownQuestion, goodName, badName, goodCount, badCount]);
 
   useLayoutEffect(() => {
     wheelRef.current.style.transform = `rotate(${rotationRef.current}deg)`;
@@ -739,7 +731,6 @@ export default function RiggedWheel() {
 
   function askQuestion(q) {
     setQuestion(q);
-    setOverride(null);
     setResult(null);
   }
 
@@ -788,10 +779,7 @@ export default function RiggedWheel() {
 
   let verdictIcon;
   let verdictText;
-  if (decision.source === 'you') {
-    verdictIcon = <Hand className="h-4 w-4" />;
-    verdictText = <>You decided: {isCredit ? 'praise' : 'blame'}</>;
-  } else if (layaThinking) {
+  if (layaThinking) {
     verdictIcon = <LoaderCircle className="h-4 w-4 animate-spin" />;
     verdictText = <>Laya is reading the question…</>;
   } else if (decision.overruled) {
@@ -890,27 +878,6 @@ export default function RiggedWheel() {
                   → {answerName}
                 </span>
               </span>
-              <button
-                type="button"
-                disabled={spinning}
-                onClick={() => setOverride(isCredit ? 'blame' : 'credit')}
-                title="Wrong call? Send it to the other person."
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${t.verdictBtn}`}
-              >
-                <ArrowLeftRight className="h-3.5 w-3.5" />
-                Flip
-              </button>
-              {override && (
-                <button
-                  type="button"
-                  disabled={spinning}
-                  onClick={() => setOverride(null)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${t.verdictBtn}`}
-                >
-                  <Brain className="h-3.5 w-3.5" />
-                  {LAYA_URL ? 'Let Laya decide' : 'Back to automatic'}
-                </button>
-              )}
               <button
                 type="button"
                 disabled={spinning}
@@ -1081,10 +1048,7 @@ export default function RiggedWheel() {
                       value={question}
                       maxLength={MAX_QUESTION}
                       disabled={spinning}
-                      onChange={(e) => {
-                        setQuestion(e.target.value);
-                        setOverride(null);
-                      }}
+                      onChange={(e) => setQuestion(e.target.value)}
                       placeholder={DEFAULTS.question}
                       className={inputClass}
                     />
@@ -1124,31 +1088,6 @@ export default function RiggedWheel() {
                         >
                           {kind === 'credit' ? <ThumbsUp className="h-3 w-3 text-rose-500" /> : <ThumbsDown className="h-3 w-3 text-blue-500" />}
                           {q}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <SectionLabel t={t}>Who does it land on?</SectionLabel>
-                    <div role="radiogroup" aria-label="Who the wheel lands on" className={`grid grid-cols-3 gap-1 rounded-xl p-1 ${t.seg}`}>
-                      {[
-                        [null, LAYA_URL ? 'Laya decides' : 'Automatic'],
-                        ['credit', goodName],
-                        ['blame', badName],
-                      ].map(([value, label]) => (
-                        <button
-                          key={label}
-                          type="button"
-                          role="radio"
-                          aria-checked={override === value}
-                          disabled={spinning}
-                          onClick={() => setOverride(value)}
-                          className={`truncate rounded-lg px-1 py-2 text-xs font-bold transition disabled:cursor-not-allowed ${
-                            override === value ? t.segOn : t.segOff
-                          }`}
-                        >
-                          {label}
                         </button>
                       ))}
                     </div>
