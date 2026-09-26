@@ -25,6 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          VITE_LAYA_URL: ${{ vars.LAYA_URL }}
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist

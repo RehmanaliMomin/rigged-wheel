@@ -1,10 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
+  ArrowLeftRight,
+  BookOpen,
+  Brain,
   Check,
   ChevronDown,
   Copy,
+  Dices,
+  Hand,
   Heart,
+  Lightbulb,
+  LoaderCircle,
   Minus,
   Moon,
   Plus,
@@ -13,6 +20,8 @@ import {
   Settings2,
   Share2,
   Sun,
+  ThumbsDown,
+  ThumbsUp,
   Trophy,
   Volume2,
   VolumeX,
@@ -22,29 +31,107 @@ import {
 /* Config                                                              */
 /* ------------------------------------------------------------------ */
 
+// Laya (huggingface.co/convaiinnovations/laya) decides whether a question
+// is praise or blame. It runs as a small API (see server/); set VITE_LAYA_URL
+// to its address. Without it, the built-in word list decides.
+const LAYA_URL = (import.meta.env?.VITE_LAYA_URL || '').replace(/\/+$/, '');
+const LAYA_TIMEOUT_MS = 12000;
+const RULE_WEIGHT = 1; // how hard each matching word nudges Laya's answer (in log-odds)
+
 const DEFAULTS = {
   question: 'Who is always right?',
-  winner: 'Wife',
-  loser: 'Husband',
-  loserCount: 15,
-  winnerCount: 1,
+  good: 'Wife', // gets the credit
+  bad: 'Husband', // gets the blame
+  decoyCount: 15,
+  answerCount: 1,
   tiny: true,
 };
 const MAX_SLICES = 40;
 const QUICK_PICKS = [8, 12, 16, 20, 30, 40];
 const MAX_QUESTION = 80;
 const MAX_NAME = 20;
-const TINY_FACTOR = 0.55; // winner slice width relative to an even slice
-const COLORS = {
-  winner: '#e11d48',
-  loserA: '#3b82f6',
-  loserB: '#1e40af',
-  bulb: '#fcd34d',
+const TINY_FACTOR = 0.55; // answer slice width relative to an even slice
+const PALETTE = {
+  good: ['#e11d48', '#9f1239'],
+  bad: ['#3b82f6', '#1e40af'],
 };
+const BULB = '#fcd34d';
 const R = 188; // slice radius in SVG units (viewBox is 420 wide)
 const BULBS = 24;
 const FLICK_MIN = 0.3; // deg/ms a drag needs on release to count as a spin
 const THEME_KEY = 'rigged-wheel-theme';
+
+const SUGGESTIONS = {
+  credit: [
+    'Who is always right?',
+    'Whose advice should we follow?',
+    'Who is the better cook?',
+    'Who has better taste?',
+    'Who is the better driver?',
+    'Who plans the best trips?',
+    'Who is the funniest?',
+    'Who is smarter?',
+    'Who gives the best hugs?',
+    'Who wins every argument?',
+  ],
+  blame: [
+    'Who makes more mistakes?',
+    'Who snores louder?',
+    'Who leaves socks on the floor?',
+    'Who forgot the anniversary?',
+    'Who gets lost without GPS?',
+    'Who ate the last slice?',
+    'Who started the argument?',
+    'Who hogs the blanket?',
+    'Who is always late?',
+    'Who is doing the dishes tonight?',
+  ],
+};
+const ALL_SUGGESTIONS = [...SUGGESTIONS.credit, ...SUGGESTIONS.blame];
+
+// Fallback when Laya is asleep, and a nudge when Laya is unsure.
+const WORDS = {
+  credit: [
+    'right', 'correct', 'smart(er|est)?', 'wiser?', 'wisdom', 'advice', 'advise', 'better', 'best', 'great(er|est)?',
+    'kind(er|est)?', 'nicer?', 'funn(y|ier|iest)', 'beautiful', 'prett(y|ier|iest)', 'handsome', 'trust(ed)?',
+    'deserves?', 'wins?', 'winner', 'winning', 'favou?rite', 'loved?', 'boss', 'charge', 'decides?', 'picks?',
+    'chooses?', 'remembers?', 'genius', 'hero', 'mvp', 'patient', 'organi[sz]ed', 'brave', 'strong(er)?', 'cute(r|st)?',
+    'cool(er|est)?', 'talented', 'awesome', 'amazing', 'perfect', 'clever(er)?', 'hugs?', 'taste', 'listen(s|ed)?',
+    'legend', 'queen', 'king', 'champion',
+  ],
+  blame: [
+    'mistakes?', 'wrong', 'wors[et]', 'late(r|st)?', 'laz(y|ier|iest)', 'snor(e|es|ed|ing)', 'louder', 'forg(e|o)t(s|ten)?',
+    'lost', 'los(e|es|ing|er)', 'mess(y|ier|iest)?', 'blamed?', 'fault', 'annoy(ing|s)?', 'lie(s|d)?', 'lying',
+    'cheat(s|ed)?', 'broke', 'break(s)?', 'broken', 'burn(s|ed|t)?', 'crash(es|ed)?', 'stubborn', 'grump(y|ier)',
+    'rude', 'dirt(y|ier)', 'smell(s|y)?', 'argu(e|es|ed|ment)', 'fight(s)?', 'overreacts?', 'complain(s)?', 'hogs?',
+    'socks?', 'dishes', 'laundry', 'trash', 'garbage', 'chores?', 'vacuum', 'apologi[sz]e', 'sorry', 'drama',
+    'scared', 'afraid', 'slow(er|est)?', 'spends?', 'ate', 'fart(s)?',
+  ],
+};
+const NEGATORS = new Set(['never', 'not', 'no', 'dont', 'doesnt', 'isnt', 'cant', 'wont', 'didnt', 'arent']);
+const WORD_RES = {
+  credit: new RegExp(`^(${WORDS.credit.join('|')})$`),
+  blame: new RegExp(`^(${WORDS.blame.join('|')})$`),
+};
+
+const QUIPS = {
+  credit: [
+    ({ a }) => `The wheel has spoken. ${a} is right. Again.`,
+    ({ o, pct }) => `${pct}% of the wheel said ${o}. Didn't matter.`,
+    ({ o }) => `Spin harder, ${o}. (It won't help.)`,
+    ({ a }) => `Scientifically, legally and spiritually: ${a}.`,
+    ({ a }) => `Certified random. ${a} wins.`,
+    ({ a }) => `Best of three? Best of a hundred? Still ${a}.`,
+  ],
+  blame: [
+    ({ a }) => `The wheel has spoken. ${a}, this one's on you.`,
+    ({ a, o, pct }) => `${pct}% of the wheel said ${o}. Still ${a}.`,
+    ({ a }) => `Nice try, ${a}. The wheel knows.`,
+    ({ a }) => `Scientifically, legally and spiritually: ${a}.`,
+    ({ a }) => `Certified random. Sorry, ${a}.`,
+    ({ a }) => `Appeal denied, ${a}.`,
+  ],
+};
 
 const THEMES = {
   light: {
@@ -66,8 +153,11 @@ const THEMES = {
     segOff: 'text-slate-500 hover:text-slate-800',
     iconBtn: 'bg-white text-slate-500 ring-slate-900/5 hover:text-slate-900',
     chip: 'bg-slate-100 text-slate-600',
-    winChip: 'bg-rose-50 text-rose-700 ring-rose-200',
-    loseChip: 'bg-blue-50 text-blue-700',
+    goodChip: 'bg-rose-50 text-rose-700 ring-rose-200',
+    badChip: 'bg-blue-50 text-blue-700 ring-blue-200',
+    idea: 'bg-slate-50 text-slate-600 ring-slate-200 hover:bg-white hover:text-slate-900',
+    verdict: 'bg-white/80 ring-slate-900/10 text-slate-600',
+    verdictBtn: 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
     copyBtn: 'bg-slate-900 hover:bg-slate-700',
     shareBtn: 'bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100',
     switchOff: 'bg-slate-300',
@@ -93,8 +183,11 @@ const THEMES = {
     segOff: 'text-slate-400 hover:text-slate-100',
     iconBtn: 'bg-slate-800 text-slate-300 ring-white/10 hover:text-white',
     chip: 'bg-slate-800 text-slate-300',
-    winChip: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',
-    loseChip: 'bg-blue-500/15 text-blue-300',
+    goodChip: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',
+    badChip: 'bg-blue-500/15 text-blue-300 ring-blue-500/30',
+    idea: 'bg-slate-800/60 text-slate-300 ring-slate-700 hover:bg-slate-800 hover:text-white',
+    verdict: 'bg-slate-800/80 ring-white/10 text-slate-300',
+    verdictBtn: 'text-slate-400 hover:bg-slate-700 hover:text-white',
     copyBtn: 'bg-slate-700 hover:bg-slate-600',
     shareBtn: 'bg-rose-500/15 text-rose-300 ring-rose-500/30 hover:bg-rose-500/25',
     switchOff: 'bg-slate-600',
@@ -103,22 +196,18 @@ const THEMES = {
   },
 };
 
-const QUIPS = [
-  ({ w }) => `The wheel has spoken. ${w} is right. Again.`,
-  ({ l, pct }) => `${pct}% of the wheel said ${l}. Didn't matter.`,
-  ({ l }) => `Spin harder, ${l}. (It won't help.)`,
-  ({ w }) => `Scientifically, legally and spiritually: ${w}.`,
-  ({ w }) => `Certified random. ${w} wins.`,
-  ({ w }) => `Best of three? Best of a hundred? Still ${w}.`,
-];
-
 /* ------------------------------------------------------------------ */
-/* Geometry helpers. Angles are degrees, clockwise from 12 o'clock.    */
+/* Helpers. Angles are degrees, clockwise from 12 o'clock.             */
 /* ------------------------------------------------------------------ */
 
 const mod = (n, m) => ((n % m) + m) % m;
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
+const logit = (p) => Math.log(p / (1 - p));
+const pickOther = (list, current) => {
+  const pool = list.filter((q) => q !== current);
+  return pool[Math.floor(Math.random() * pool.length)];
+};
 
 function polar(r, deg) {
   const a = (deg * Math.PI) / 180;
@@ -132,25 +221,26 @@ function slicePath(start, end, r) {
   return `M0 0 L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2}Z`;
 }
 
-function buildSlices(loserCount, winnerCount, tiny) {
-  const total = loserCount + winnerCount;
+// The "answer" slices are where the wheel always lands; "decoys" fill the rest.
+function buildSlices(decoyCount, answerCount, tiny, answerColors, decoyColors) {
+  const total = decoyCount + answerCount;
   const even = 360 / total;
-  const winSize = tiny ? even * TINY_FACTOR : even;
-  const loseSize = (360 - winSize * winnerCount) / loserCount;
-  // Spread the winner slices evenly around the wheel.
-  const winIndexes = new Set(
-    Array.from({ length: winnerCount }, (_, j) => Math.floor(((j + 0.5) * total) / winnerCount)),
+  const answerSize = tiny ? even * TINY_FACTOR : even;
+  const decoySize = (360 - answerSize * answerCount) / decoyCount;
+  // Spread the answer slices evenly around the wheel.
+  const answerIndexes = new Set(
+    Array.from({ length: answerCount }, (_, j) => Math.floor(((j + 0.5) * total) / answerCount)),
   );
   let angle = 0;
-  let losersSoFar = 0;
+  let decoysSoFar = 0;
   return Array.from({ length: total }, (_, i) => {
-    const isWinner = winIndexes.has(i);
-    const size = isWinner ? winSize : loseSize;
+    const isAnswer = answerIndexes.has(i);
+    const size = isAnswer ? answerSize : decoySize;
     const slice = {
       start: angle,
       end: angle + size,
-      isWinner,
-      color: isWinner ? COLORS.winner : losersSoFar++ % 2 ? COLORS.loserB : COLORS.loserA,
+      isAnswer,
+      color: isAnswer ? answerColors[0] : decoyColors[decoysSoFar++ % 2],
     };
     angle += size;
     return slice;
@@ -171,6 +261,31 @@ function labelSize(slice, text) {
   return Math.max(7, Math.min(24, arc * 0.6, room / (Math.max(text.length, 3) * 0.62)));
 }
 
+// +1 for each praise word, -1 for each blame word; "never"/"not" just before flips it.
+function wordScore(text) {
+  const words = text.toLowerCase().replace(/['’]/g, '').split(/[^a-z]+/).filter(Boolean);
+  let score = 0;
+  words.forEach((word, i) => {
+    const hit = WORD_RES.credit.test(word) ? 1 : WORD_RES.blame.test(word) ? -1 : 0;
+    if (!hit) return;
+    const negated = words.slice(Math.max(0, i - 2), i).some((w) => NEGATORS.has(w));
+    score += negated ? -hit : hit;
+  });
+  return score;
+}
+
+// Laya decides; the word list only tips it when Laya is unsure. Without Laya,
+// the word list decides, and with no clues at all it's praise (the original joke).
+function decide({ override, layaP, words }) {
+  if (override) return { verdict: override, source: 'you' };
+  if (layaP != null) {
+    const p = 1 / (1 + Math.exp(-(logit(clamp(layaP, 0.001, 0.999)) + RULE_WEIGHT * words)));
+    return { verdict: p >= 0.5 ? 'credit' : 'blame', source: 'laya', layaP };
+  }
+  if (words) return { verdict: words > 0 ? 'credit' : 'blame', source: 'words' };
+  return { verdict: 'credit', source: 'default' };
+}
+
 /* ------------------------------------------------------------------ */
 /* URL params + stored theme                                           */
 /* ------------------------------------------------------------------ */
@@ -180,21 +295,23 @@ function readParams() {
   const text = (key, max, fallback) => (p.get(key) || '').trim().slice(0, max) || fallback;
   const int = (key) => parseInt(p.get(key), 10);
 
-  let winnerCount = int('nw');
-  let loserCount = int('nl');
-  const legacyTotal = int('n'); // old links: ?n=16 meant 15 losers + 1 winner
-  if (Number.isNaN(winnerCount)) winnerCount = Number.isNaN(legacyTotal) ? DEFAULTS.winnerCount : 1;
-  if (Number.isNaN(loserCount)) loserCount = Number.isNaN(legacyTotal) ? DEFAULTS.loserCount : legacyTotal - 1;
-  winnerCount = clamp(winnerCount, 1, MAX_SLICES - 1);
-  loserCount = clamp(loserCount, 1, MAX_SLICES - winnerCount);
+  let answerCount = int('nw');
+  let decoyCount = int('nl');
+  const legacyTotal = int('n'); // old links: ?n=16 meant 15 decoys + 1 answer
+  if (Number.isNaN(answerCount)) answerCount = Number.isNaN(legacyTotal) ? DEFAULTS.answerCount : 1;
+  if (Number.isNaN(decoyCount)) decoyCount = Number.isNaN(legacyTotal) ? DEFAULTS.decoyCount : legacyTotal - 1;
+  answerCount = clamp(answerCount, 1, MAX_SLICES - 1);
+  decoyCount = clamp(decoyCount, 1, MAX_SLICES - answerCount);
+  const v = p.get('v');
 
   return {
     question: text('q', MAX_QUESTION, DEFAULTS.question),
-    winner: text('w', MAX_NAME, DEFAULTS.winner),
-    loser: text('l', MAX_NAME, DEFAULTS.loser),
-    loserCount,
-    winnerCount,
+    good: text('w', MAX_NAME, DEFAULTS.good),
+    bad: text('l', MAX_NAME, DEFAULTS.bad),
+    decoyCount,
+    answerCount,
     tiny: p.get('tiny') !== '0',
+    override: v === 'credit' || v === 'blame' ? v : null,
     fromLink: ['q', 'w', 'l'].some((k) => p.has(k)),
   };
 }
@@ -216,26 +333,29 @@ function initialTheme() {
 export default function RiggedWheel() {
   const [initial] = useState(readParams);
   const [question, setQuestion] = useState(initial.question);
-  const [winner, setWinner] = useState(initial.winner);
-  const [loser, setLoser] = useState(initial.loser);
-  const [loserCount, setLoserCount] = useState(initial.loserCount);
-  const [winnerCount, setWinnerCount] = useState(initial.winnerCount);
+  const [good, setGood] = useState(initial.good);
+  const [bad, setBad] = useState(initial.bad);
+  const [decoyCount, setDecoyCount] = useState(initial.decoyCount);
+  const [answerCount, setAnswerCount] = useState(initial.answerCount);
   const [tiny, setTiny] = useState(initial.tiny);
+  const [override, setOverride] = useState(initial.override);
+  const [laya, setLaya] = useState({ status: 'idle', key: '', p: null });
+  const [frozen, setFrozen] = useState(null); // decision locked for the length of a spin
   const [theme, setTheme] = useState(initialTheme);
   const [panelOpen, setPanelOpen] = useState(!initial.fromLink);
   const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState(null); // { isWinner, index, quip }
-  const [stats, setStats] = useState({ spins: 0, wins: 0 });
+  const [result, setResult] = useState(null); // { verdict, index, answer, other, quip }
+  const [tally, setTally] = useState({ spins: 0, good: 0, bad: 0 });
   const [muted, setMuted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [canShare] = useState(() => typeof navigator !== 'undefined' && !!navigator.share);
 
   const t = THEMES[theme];
-  const total = loserCount + winnerCount;
+  const total = decoyCount + answerCount;
 
   const wheelRef = useRef(null);
   const pointerRef = useRef(null);
-  const rotationRef = useRef(-180 / (initial.loserCount + initial.winnerCount)); // rest mid-way through slice 0
+  const rotationRef = useRef(-180 / (initial.decoyCount + initial.answerCount)); // rest mid-way through slice 0
   const rafRef = useRef(0);
   const spinningRef = useRef(false);
   const dirRef = useRef(1);
@@ -244,30 +364,51 @@ export default function RiggedWheel() {
   const mutedRef = useRef(false);
   const timersRef = useRef([]);
   const lastQuipRef = useRef(-1);
+  const layaCacheRef = useRef(new Map());
+  const blameShapesRef = useRef(null);
 
   const shownQuestion = question.trim() || DEFAULTS.question;
-  const winnerLabel = winner.trim() || DEFAULTS.winner;
-  const loserLabel = loser.trim() || DEFAULTS.loser;
+  const questionKey = shownQuestion.toLowerCase().replace(/\s+/g, ' ');
+  const goodName = good.trim() || DEFAULTS.good;
+  const badName = bad.trim() || DEFAULTS.bad;
 
-  const slices = useMemo(() => buildSlices(loserCount, winnerCount, tiny), [loserCount, winnerCount, tiny]);
+  const liveDecision = decide({
+    override,
+    layaP: laya.status === 'ok' && laya.key === questionKey ? laya.p : null,
+    words: wordScore(shownQuestion),
+  });
+  const decision = frozen ?? liveDecision;
+  const isCredit = decision.verdict === 'credit';
+  const answerName = isCredit ? goodName : badName;
+  const decoyName = isCredit ? badName : goodName;
+  const answerRole = isCredit ? 'good' : 'bad';
+  const decoyRole = isCredit ? 'bad' : 'good';
+  const layaThinking = !override && laya.key === questionKey && laya.status === 'loading';
+
+  const slices = useMemo(
+    () => buildSlices(decoyCount, answerCount, tiny, PALETTE[answerRole], PALETTE[decoyRole]),
+    [decoyCount, answerCount, tiny, answerRole, decoyRole],
+  );
   const slicesRef = useRef(slices);
   const lastSliceRef = useRef(sliceUnderPointer(slices, rotationRef.current));
-  const loserPct = Math.round(
-    (slices.filter((s) => !s.isWinner).reduce((sum, s) => sum + s.end - s.start, 0) / 360) * 100,
+  const decoyPct = Math.round(
+    (slices.filter((s) => !s.isAnswer).reduce((sum, s) => sum + s.end - s.start, 0) / 360) * 100,
   );
-  const landedSlice = result && !spinning ? slices[result.index] : null;
+  const landedSlice =
+    result && !spinning && result.verdict === decision.verdict ? slices[result.index] : null;
 
   const shareUrl = useMemo(() => {
     const params = new URLSearchParams({
       q: shownQuestion,
-      w: winnerLabel,
-      l: loserLabel,
-      nl: String(loserCount),
-      nw: String(winnerCount),
+      w: goodName,
+      l: badName,
+      nl: String(decoyCount),
+      nw: String(answerCount),
     });
     if (!tiny) params.set('tiny', '0');
+    if (override) params.set('v', override);
     return `${window.location.origin}${window.location.pathname}?${params}`;
-  }, [shownQuestion, winnerLabel, loserLabel, loserCount, winnerCount, tiny]);
+  }, [shownQuestion, goodName, badName, decoyCount, answerCount, tiny, override]);
 
   useLayoutEffect(() => {
     wheelRef.current.style.transform = `rotate(${rotationRef.current}deg)`;
@@ -289,6 +430,44 @@ export default function RiggedWheel() {
       /* storage blocked: theme just won't persist */
     }
   }, [theme]);
+
+  // Ask Laya about the question (debounced, cached, falls back to the word list on failure).
+  useEffect(() => {
+    if (!LAYA_URL) return undefined;
+    const cached = layaCacheRef.current.get(questionKey);
+    if (cached != null) {
+      setLaya({ status: 'ok', key: questionKey, p: cached });
+      return undefined;
+    }
+    setLaya({ status: 'loading', key: questionKey, p: null });
+    const ctrl = new AbortController();
+    let cancelled = false;
+    const debounce = setTimeout(() => {
+      const kill = setTimeout(() => ctrl.abort(), LAYA_TIMEOUT_MS);
+      fetch(`${LAYA_URL}/classify`, {
+        method: 'POST',
+        // The second header skips ngrok's browser warning page when Laya is tunnelled from a laptop.
+        headers: { 'content-type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body: JSON.stringify({ question: shownQuestion }),
+        signal: ctrl.signal,
+      })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+        .then((data) => {
+          if (typeof data.p_credit !== 'number') throw new Error('bad response');
+          layaCacheRef.current.set(questionKey, data.p_credit);
+          if (!cancelled) setLaya({ status: 'ok', key: questionKey, p: data.p_credit });
+        })
+        .catch(() => {
+          if (!cancelled) setLaya({ status: 'error', key: questionKey, p: null });
+        })
+        .finally(() => clearTimeout(kill));
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(debounce);
+      ctrl.abort();
+    };
+  }, [questionKey, shownQuestion]);
 
   useEffect(
     () => () => {
@@ -314,14 +493,24 @@ export default function RiggedWheel() {
     return audioRef.current;
   }
 
-  function blip(ctx, { at, type, freq, endFreq, gain, length }) {
+  function blip(ctx, { at, type, freq, endFreq, gain, length, vibrato }) {
     const osc = ctx.createOscillator();
     const amp = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, at);
     if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, at + length);
+    if (vibrato) {
+      const lfo = ctx.createOscillator();
+      const depth = ctx.createGain();
+      lfo.frequency.value = 6;
+      depth.gain.value = vibrato;
+      lfo.connect(depth).connect(osc.frequency);
+      lfo.start(at);
+      lfo.stop(at + length + 0.02);
+    }
     amp.gain.setValueAtTime(0.0001, at);
-    amp.gain.exponentialRampToValueAtTime(gain, at + 0.005);
+    amp.gain.exponentialRampToValueAtTime(gain, at + 0.01);
+    amp.gain.setValueAtTime(gain, at + length * 0.7);
     amp.gain.exponentialRampToValueAtTime(0.0001, at + length);
     osc.connect(amp).connect(ctx.destination);
     osc.start(at);
@@ -350,6 +539,24 @@ export default function RiggedWheel() {
     });
   }
 
+  function playSadTrombone() {
+    if (mutedRef.current) return;
+    const ctx = getAudio();
+    if (!ctx) return;
+    const t0 = ctx.currentTime + 0.05;
+    [392, 370, 349.23, 329.63].forEach((freq, i) => {
+      blip(ctx, {
+        at: t0 + i * 0.38,
+        type: 'sawtooth',
+        freq,
+        endFreq: i === 3 ? freq * 0.94 : undefined,
+        gain: 0.09,
+        length: i === 3 ? 1.1 : 0.34,
+        vibrato: i === 3 ? 7 : 0,
+      });
+    });
+  }
+
   /* ---------- spin ---------- */
 
   function applyRotation(deg) {
@@ -363,24 +570,26 @@ export default function RiggedWheel() {
   }
 
   // The rig: pick the landing angle first (somewhere inside a random
-  // winner slice), then work out a rotation of N full turns that ends
+  // answer slice), then work out a rotation of N full turns that ends
   // exactly there. Spin power only changes how many turns and how long.
   function spin({ direction = 1, power = Math.random() } = {}) {
     if (spinningRef.current) return;
     getAudio();
 
-    const winners = slicesRef.current.filter((s) => s.isWinner);
-    const win = winners[Math.floor(Math.random() * winners.length)];
-    const target = win.start + (win.end - win.start) * (0.15 + Math.random() * 0.7);
+    const answers = slicesRef.current.filter((s) => s.isAnswer);
+    const target = answers[Math.floor(Math.random() * answers.length)];
+    const angle = target.start + (target.end - target.start) * (0.15 + Math.random() * 0.7);
     const from = rotationRef.current;
     const turns = 5 + Math.round(power * 2); // 5-7 full rotations
-    const offset = direction > 0 ? mod(-target - from, 360) : mod(from + target, 360);
+    const offset = direction > 0 ? mod(-angle - from, 360) : mod(from + angle, 360);
     const to = from + direction * (turns * 360 + offset);
     const duration = 4000 + power * 1000; // 4-5 s
     const startedAt = performance.now();
+    const locked = { ...decision, answer: answerName, other: decoyName, pct: decoyPct };
 
     spinningRef.current = true;
     dirRef.current = direction;
+    setFrozen(decision);
     setSpinning(true);
     setResult(null);
 
@@ -388,42 +597,57 @@ export default function RiggedWheel() {
       const p = Math.min(1, (now - startedAt) / duration);
       applyRotation(from + (to - from) * easeOutQuart(p));
       if (p < 1) rafRef.current = requestAnimationFrame(step);
-      else finish();
+      else finish(locked);
     };
     rafRef.current = requestAnimationFrame(step);
   }
 
-  function finish() {
+  function finish(locked) {
     const deg = mod(rotationRef.current, 360);
     rotationRef.current = deg;
     wheelRef.current.style.transform = `rotate(${deg}deg)`;
 
     const index = sliceUnderPointer(slicesRef.current, deg);
-    const landed = slicesRef.current[index];
-    const quip = (lastQuipRef.current + 1 + Math.floor(Math.random() * (QUIPS.length - 1))) % QUIPS.length;
+    const quips = QUIPS[locked.verdict];
+    const quip = (lastQuipRef.current + 1 + Math.floor(Math.random() * (quips.length - 1))) % quips.length;
     lastQuipRef.current = quip;
+    const role = locked.verdict === 'credit' ? 'good' : 'bad';
 
     spinningRef.current = false;
     setSpinning(false);
-    setStats((s) => ({ spins: s.spins + 1, wins: s.wins + (landed.isWinner ? 1 : 0) }));
-    setResult({ isWinner: landed.isWinner, index, quip });
-    if (landed.isWinner) celebrate();
+    setFrozen(null);
+    setTally((s) => ({ ...s, spins: s.spins + 1, [role]: s[role] + 1 }));
+    setResult({ verdict: locked.verdict, index, answer: locked.answer, other: locked.other, pct: locked.pct, quip });
+    if (slicesRef.current[index].isAnswer) celebrate(locked.verdict);
   }
 
-  function celebrate() {
-    playFanfare();
-    const base = {
-      colors: [COLORS.winner, '#fb7185', '#fcd34d', '#ffffff'],
-      disableForReducedMotion: true,
-      zIndex: 50,
-    };
-    confetti({ ...base, particleCount: 140, spread: 90, startVelocity: 45, origin: { y: 0.55 } });
-    timersRef.current.push(
-      setTimeout(() => {
-        confetti({ ...base, particleCount: 70, angle: 60, spread: 65, origin: { x: 0, y: 0.75 } });
-        confetti({ ...base, particleCount: 70, angle: 120, spread: 65, origin: { x: 1, y: 0.75 } });
-      }, 250),
-    );
+  function celebrate(verdict) {
+    const base = { disableForReducedMotion: true, zIndex: 50 };
+    if (verdict === 'credit') {
+      playFanfare();
+      const colors = [PALETTE.good[0], '#fb7185', BULB, '#ffffff'];
+      confetti({ ...base, colors, particleCount: 140, spread: 90, startVelocity: 45, origin: { y: 0.55 } });
+      timersRef.current.push(
+        setTimeout(() => {
+          confetti({ ...base, colors, particleCount: 70, angle: 60, spread: 65, origin: { x: 0, y: 0.75 } });
+          confetti({ ...base, colors, particleCount: 70, angle: 120, spread: 65, origin: { x: 1, y: 0.75 } });
+        }, 250),
+      );
+      return;
+    }
+    playSadTrombone();
+    blameShapesRef.current ??= ['🤦', '🙃', '😬'].map((text) => confetti.shapeFromText({ text, scalar: 2.4 }));
+    confetti({
+      ...base,
+      shapes: blameShapesRef.current,
+      scalar: 2.4,
+      particleCount: 36,
+      spread: 100,
+      startVelocity: 38,
+      gravity: 0.9,
+      ticks: 260,
+      origin: { y: 0.5 },
+    });
   }
 
   /* ---------- grab & flick ---------- */
@@ -466,7 +690,13 @@ export default function RiggedWheel() {
     }
   }
 
-  /* ---------- share ---------- */
+  /* ---------- question + share ---------- */
+
+  function askQuestion(q) {
+    setQuestion(q);
+    setOverride(null);
+    setResult(null);
+  }
 
   async function copyLink() {
     try {
@@ -496,19 +726,55 @@ export default function RiggedWheel() {
   }
 
   function resetSettings() {
-    setQuestion(DEFAULTS.question);
-    setWinner(DEFAULTS.winner);
-    setLoser(DEFAULTS.loser);
-    setLoserCount(DEFAULTS.loserCount);
-    setWinnerCount(DEFAULTS.winnerCount);
+    askQuestion(DEFAULTS.question);
+    setGood(DEFAULTS.good);
+    setBad(DEFAULTS.bad);
+    setDecoyCount(DEFAULTS.decoyCount);
+    setAnswerCount(DEFAULTS.answerCount);
     setTiny(DEFAULTS.tiny);
   }
 
   /* ---------- render ---------- */
 
-  const inputClass = `w-full rounded-xl border px-3 py-2.5 text-sm font-medium outline-none transition focus:ring-4 ${t.input}`;
+  const inputClass = `w-full rounded-xl border px-3 py-2.5 text-sm font-medium outline-none transition focus:ring-4 disabled:opacity-60 ${t.input}`;
   const cardClass = `rounded-3xl p-5 ring-1 transition-colors ${t.card}`;
   const iconBtnClass = `grid h-11 w-11 shrink-0 place-items-center rounded-2xl shadow ring-1 transition ${t.iconBtn}`;
+  const roleChip = (role) => (role === 'good' ? t.goodChip : t.badChip);
+  const answerSure = decision.layaP != null ? Math.round((isCredit ? decision.layaP : 1 - decision.layaP) * 100) : null;
+
+  let verdictIcon;
+  let verdictText;
+  if (decision.source === 'you') {
+    verdictIcon = <Hand className="h-4 w-4" />;
+    verdictText = <>You decided: {isCredit ? 'praise' : 'blame'}</>;
+  } else if (layaThinking) {
+    verdictIcon = <LoaderCircle className="h-4 w-4 animate-spin" />;
+    verdictText = <>Laya is reading the question…</>;
+  } else if (decision.source === 'laya') {
+    verdictIcon = <Brain className="h-4 w-4" />;
+    verdictText = (
+      <>
+        Laya: sounds like {isCredit ? 'praise' : 'blame'}
+        {answerSure >= 50 && <span className="opacity-60"> · {answerSure}% sure</span>}
+      </>
+    );
+  } else {
+    verdictIcon = <BookOpen className="h-4 w-4" />;
+    verdictText =
+      decision.source === 'words' ? (
+        <>Word list: sounds like {isCredit ? 'praise' : 'blame'}</>
+      ) : (
+        <>No clues, so it's praise</>
+      );
+  }
+  const verdictTitle =
+    decision.source === 'words' || decision.source === 'default'
+      ? LAYA_URL
+        ? "Laya didn't answer in time, so the built-in word list decided."
+        : 'Laya isn\'t connected, so the built-in word list decided.'
+      : decision.source === 'laya'
+        ? 'Laya scored the question. If it was unsure, the word list tipped it.'
+        : undefined;
 
   return (
     <div
@@ -559,6 +825,50 @@ export default function RiggedWheel() {
               {shownQuestion}
             </h2>
 
+            {/* Who it lands on, and why */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <span
+                title={verdictTitle}
+                className={`inline-flex items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 text-sm font-medium ring-1 ${t.verdict}`}
+              >
+                {verdictIcon}
+                <span>{verdictText}</span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${roleChip(answerRole)}`}>
+                  → {answerName}
+                </span>
+              </span>
+              <button
+                type="button"
+                disabled={spinning}
+                onClick={() => setOverride(isCredit ? 'blame' : 'credit')}
+                title="Wrong call? Send it to the other person."
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${t.verdictBtn}`}
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5" />
+                Flip
+              </button>
+              {override && (
+                <button
+                  type="button"
+                  disabled={spinning}
+                  onClick={() => setOverride(null)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${t.verdictBtn}`}
+                >
+                  <Brain className="h-3.5 w-3.5" />
+                  {LAYA_URL ? 'Let Laya decide' : 'Back to automatic'}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={spinning}
+                onClick={() => askQuestion(pickOther(ALL_SUGGESTIONS, shownQuestion))}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${t.verdictBtn}`}
+              >
+                <Dices className="h-3.5 w-3.5" />
+                Surprise me
+              </button>
+            </div>
+
             <div className="relative mt-10 aspect-square w-full max-w-[26rem] select-none">
               <div
                 ref={wheelRef}
@@ -573,7 +883,7 @@ export default function RiggedWheel() {
                   <circle r="206" fill={t.rim} />
                   <circle r={R + 2} fill="#fff" />
                   {slices.map((s, i) => {
-                    const text = s.isWinner ? winnerLabel : loserLabel;
+                    const text = s.isAnswer ? answerName : decoyName;
                     return (
                       <g key={i}>
                         <path d={slicePath(s.start, s.end, R)} fill={s.color} stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
@@ -594,7 +904,7 @@ export default function RiggedWheel() {
                       </g>
                     );
                   })}
-                  {landedSlice?.isWinner && (
+                  {landedSlice?.isAnswer && (
                     <path
                       d={slicePath(landedSlice.start, landedSlice.end, R)}
                       fill="none"
@@ -612,7 +922,7 @@ export default function RiggedWheel() {
                         cx={cx}
                         cy={cy}
                         r="4.5"
-                        fill={COLORS.bulb}
+                        fill={BULB}
                         className={spinning ? 'animate-pulse' : ''}
                         style={{ animationDelay: `${(i % 2) * 0.5}s`, animationDuration: '0.8s' }}
                       />
@@ -640,7 +950,7 @@ export default function RiggedWheel() {
                 <div ref={pointerRef} className="h-full w-full" style={{ transformOrigin: '50% 36%' }}>
                   <svg viewBox="0 0 40 56" className="h-full w-full drop-shadow-md" aria-hidden="true">
                     <path d="M20 54 L6 26 A16 16 0 1 1 34 26 Z" fill={t.rim} stroke="#fff" strokeWidth="3" strokeLinejoin="round" />
-                    <circle cx="20" cy="20" r="6" fill={COLORS.bulb} />
+                    <circle cx="20" cy="20" r="6" fill={BULB} />
                   </svg>
                 </div>
               </div>
@@ -653,18 +963,22 @@ export default function RiggedWheel() {
               className={`group mt-10 inline-flex items-center gap-2 rounded-full bg-rose-600 px-10 py-4 text-lg font-black uppercase tracking-wider text-white shadow-lg shadow-rose-600/30 transition hover:-translate-y-0.5 hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-rose-600 ${t.focusRing}`}
             >
               <RotateCw className={`h-5 w-5 ${spinning ? 'animate-spin' : 'transition-transform group-hover:rotate-90'}`} />
-              {spinning ? 'Spinning…' : stats.spins ? 'Spin again' : 'Spin'}
+              {spinning ? 'Spinning…' : tally.spins ? 'Spin again' : 'Spin'}
             </button>
 
             <div aria-live="polite" className="mt-6 flex min-h-[5.5rem] flex-col items-center text-center">
               {result && !spinning ? (
                 <div style={{ animation: 'rw-pop .45s ease-out' }}>
-                  <p className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold ring-1 ${t.winChip}`}>
-                    <Trophy className="h-4 w-4" />
-                    {result.isWinner ? `${winnerLabel} wins!` : `${loserLabel} wins?!`}
+                  <p
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-bold ring-1 ${
+                      result.verdict === 'credit' ? t.goodChip : t.badChip
+                    }`}
+                  >
+                    {result.verdict === 'credit' ? <Trophy className="h-4 w-4" /> : <ThumbsDown className="h-4 w-4" />}
+                    {result.verdict === 'credit' ? `${result.answer} wins!` : `It's ${result.answer}.`}
                   </p>
                   <p className="mt-3 text-lg font-semibold">
-                    {QUIPS[result.quip]({ w: winnerLabel, l: loserLabel, pct: loserPct })}
+                    {QUIPS[result.verdict][result.quip]({ a: result.answer, o: result.other, pct: result.pct })}
                   </p>
                 </div>
               ) : (
@@ -676,13 +990,13 @@ export default function RiggedWheel() {
 
             <div className="mt-2 flex flex-wrap justify-center gap-2 text-xs font-semibold">
               <span className={`rounded-full px-3 py-1 ${t.chip}`}>
-                {stats.spins} {stats.spins === 1 ? 'spin' : 'spins'}
+                {tally.spins} {tally.spins === 1 ? 'spin' : 'spins'}
               </span>
-              <span className={`rounded-full px-3 py-1 ${t.winChip}`}>
-                {winnerLabel}: {stats.wins}
+              <span className={`rounded-full px-3 py-1 ${t.goodChip}`}>
+                {goodName}: {tally.good}
               </span>
-              <span className={`rounded-full px-3 py-1 ${t.loseChip}`}>
-                {loserLabel}: {stats.spins - stats.wins}
+              <span className={`rounded-full px-3 py-1 ${t.badChip}`}>
+                {badName}: {tally.bad}
               </span>
             </div>
           </section>
@@ -709,28 +1023,94 @@ export default function RiggedWheel() {
                     <input
                       value={question}
                       maxLength={MAX_QUESTION}
-                      onChange={(e) => setQuestion(e.target.value)}
+                      disabled={spinning}
+                      onChange={(e) => {
+                        setQuestion(e.target.value);
+                        setOverride(null);
+                      }}
                       placeholder={DEFAULTS.question}
                       className={inputClass}
                     />
                   </Field>
 
+                  <div>
+                    <SectionLabel t={t} hint={LAYA_URL ? 'Laya sorts them for you' : 'Sorted by the word list'}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5" />
+                        Question ideas
+                      </span>
+                    </SectionLabel>
+                    {[
+                      ['credit', ThumbsUp, `Praise → ${goodName}`],
+                      ['blame', ThumbsDown, `Blame → ${badName}`],
+                    ].map(([kind, Icon, heading]) => (
+                      <div key={kind} className="mt-2">
+                        <p className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${t.muted}`}>
+                          <Icon className="h-3.5 w-3.5" />
+                          {heading}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {SUGGESTIONS[kind].map((q) => (
+                            <button
+                              key={q}
+                              type="button"
+                              disabled={spinning}
+                              onClick={() => askQuestion(q)}
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                q === shownQuestion ? roleChip(kind === 'credit' ? 'good' : 'bad') : t.idea
+                              }`}
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <SectionLabel t={t}>Who does it land on?</SectionLabel>
+                    <div role="radiogroup" aria-label="Who the wheel lands on" className={`grid grid-cols-3 gap-1 rounded-xl p-1 ${t.seg}`}>
+                      {[
+                        [null, LAYA_URL ? 'Laya decides' : 'Automatic'],
+                        ['credit', goodName],
+                        ['blame', badName],
+                      ].map(([value, label]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          role="radio"
+                          aria-checked={override === value}
+                          disabled={spinning}
+                          onClick={() => setOverride(value)}
+                          className={`truncate rounded-lg px-1 py-2 text-xs font-bold transition disabled:cursor-not-allowed ${
+                            override === value ? t.segOn : t.segOff
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
-                    <Field t={t} label={<Dot color={COLORS.winner}>Winner</Dot>}>
+                    <Field t={t} label={<Dot color={PALETTE.good[0]}>Gets the credit</Dot>}>
                       <input
-                        value={winner}
+                        value={good}
                         maxLength={MAX_NAME}
-                        onChange={(e) => setWinner(e.target.value)}
-                        placeholder={DEFAULTS.winner}
+                        disabled={spinning}
+                        onChange={(e) => setGood(e.target.value)}
+                        placeholder={DEFAULTS.good}
                         className={inputClass}
                       />
                     </Field>
-                    <Field t={t} label={<Dot color={COLORS.loserA}>Loser</Dot>}>
+                    <Field t={t} label={<Dot color={PALETTE.bad[0]}>Gets the blame</Dot>}>
                       <input
-                        value={loser}
+                        value={bad}
                         maxLength={MAX_NAME}
-                        onChange={(e) => setLoser(e.target.value)}
-                        placeholder={DEFAULTS.loser}
+                        disabled={spinning}
+                        onChange={(e) => setBad(e.target.value)}
+                        placeholder={DEFAULTS.bad}
                         className={inputClass}
                       />
                     </Field>
@@ -743,25 +1123,28 @@ export default function RiggedWheel() {
                     <div className="grid grid-cols-2 gap-3">
                       <Stepper
                         t={t}
-                        label={<Dot color={COLORS.winner}>{winnerLabel}</Dot>}
-                        name={`${winnerLabel} slices`}
-                        value={winnerCount}
+                        label="Landing slices"
+                        name="landing slices"
+                        value={answerCount}
                         min={1}
-                        max={MAX_SLICES - loserCount}
-                        onChange={setWinnerCount}
+                        max={MAX_SLICES - decoyCount}
+                        onChange={setAnswerCount}
                         disabled={spinning}
                       />
                       <Stepper
                         t={t}
-                        label={<Dot color={COLORS.loserA}>{loserLabel}</Dot>}
-                        name={`${loserLabel} slices`}
-                        value={loserCount}
+                        label="Decoy slices"
+                        name="decoy slices"
+                        value={decoyCount}
                         min={1}
-                        max={MAX_SLICES - winnerCount}
-                        onChange={setLoserCount}
+                        max={MAX_SLICES - answerCount}
+                        onChange={setDecoyCount}
                         disabled={spinning}
                       />
                     </div>
+                    <p className={`mt-1.5 text-xs ${t.subtle}`}>
+                      Right now: {answerCount} × {answerName}, {decoyCount} × {decoyName}.
+                    </p>
 
                     <p className={`mb-1.5 mt-3 text-xs font-medium ${t.subtle}`}>Quick picks (total slices)</p>
                     <div role="radiogroup" aria-label="Total slices" className={`grid grid-cols-6 gap-1 rounded-xl p-1 ${t.seg}`}>
@@ -771,8 +1154,8 @@ export default function RiggedWheel() {
                           type="button"
                           role="radio"
                           aria-checked={total === n}
-                          disabled={spinning || n - winnerCount < 1}
-                          onClick={() => setLoserCount(n - winnerCount)}
+                          disabled={spinning || n - answerCount < 1}
+                          onClick={() => setDecoyCount(n - answerCount)}
                           className={`rounded-lg py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
                             total === n ? t.segOn : t.segOff
                           }`}
@@ -792,10 +1175,8 @@ export default function RiggedWheel() {
                     className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left ring-1 transition disabled:cursor-not-allowed disabled:opacity-60 ${t.well}`}
                   >
                     <span>
-                      <span className="block text-sm font-semibold">
-                        Tiny {winnerLabel} {winnerCount === 1 ? 'slice' : 'slices'}
-                      </span>
-                      <span className={`block text-xs ${t.subtle}`}>The smaller it is, the funnier the win.</span>
+                      <span className="block text-sm font-semibold">Tiny landing {answerCount === 1 ? 'slice' : 'slices'}</span>
+                      <span className={`block text-xs ${t.subtle}`}>The smaller it is, the funnier the result.</span>
                     </span>
                     <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${tiny ? 'bg-rose-600' : t.switchOff}`}>
                       <span
@@ -860,7 +1241,16 @@ export default function RiggedWheel() {
         </main>
 
         <footer className={`mt-10 text-center text-xs ${t.subtle}`}>
-          *Randomness not included. Results are final and binding in most households.
+          *Randomness not included. Praise-or-blame calls by{' '}
+          <a
+            href="https://huggingface.co/convaiinnovations/laya"
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-dotted underline-offset-2 hover:text-rose-500"
+          >
+            Laya
+          </a>
+          . Results are final and binding in most households.
         </footer>
       </div>
     </div>
