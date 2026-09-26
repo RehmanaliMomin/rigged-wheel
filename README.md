@@ -26,7 +26,7 @@
 
 ## 🎯 Type any question, and the wheel knows who it's about
 
-Ask something nice and the wheel lands on **Wife**. Ask something embarrassing and it lands on **Husband**. The wheel fills up with the other name, the right answer gets one tiny slice, and it still lands on that slice every time.
+Ask something nice and the wheel lands on **Wife**. Ask something embarrassing and it lands on **Husband**. The wheel is an honest-looking 50/50 split, and it never changes when you change the question. Only the landing is rigged.
 
 | 💐 Praise, so it's Wife | 🙃 Blame, so it's Husband |
 | :-- | :-- |
@@ -34,19 +34,19 @@ Ask something nice and the wheel lands on **Wife**. Ask something embarrassing a
 | [Whose advice should we follow?](https://rehmanalimomin.github.io/rigged-wheel/?q=Whose+advice+should+we+follow%3F) | [Who snores louder?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+snores+louder%3F) |
 | [Who has better taste?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+has+better+taste%3F) | [Who ate the last slice?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+ate+the+last+slice%3F) |
 
-Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). There are 24 more ideas in the app, plus a 🎲 **Surprise me** button.
+Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app shows four ideas at a time (🎲 **More ideas** for another four), and **Surprise me** picks one at random.
 
 ## 🎬 What it looks like
 
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="docs/demo-praise.gif" alt="Who is always right? The wheel is full of Husband slices and lands on the one tiny Wife slice. Confetti and a fanfare." width="100%" />
-      <br /><sub><b>Praise:</b> 15 × Husband, 1 tiny Wife. Lands on Wife. Fanfare and confetti.</sub>
+      <img src="docs/demo-praise.gif" alt="Who is always right? A fair-looking 8 Wife / 8 Husband wheel spins and lands on Wife. Confetti and a fanfare." width="100%" />
+      <br /><sub><b>Praise:</b> 8 × Wife, 8 × Husband. Lands on Wife. Fanfare and confetti.</sub>
     </td>
     <td align="center" width="50%">
-      <img src="docs/demo-blame.gif" alt="Who makes more mistakes? The wheel is full of Wife slices and lands on the one tiny Husband slice. Facepalm emoji rain." width="100%" />
-      <br /><sub><b>Blame:</b> 15 × Wife, 1 tiny Husband. Lands on Husband. Sad trombone and 🤦.</sub>
+      <img src="docs/demo-blame.gif" alt="Who makes more mistakes? The same 50/50 wheel spins and lands on Husband. Facepalm emoji rain." width="100%" />
+      <br /><sub><b>Blame:</b> the same wheel. Lands on Husband. Sad trombone and 🤦.</sub>
     </td>
   </tr>
 </table>
@@ -62,12 +62,13 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). There are 2
 
 - 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame, and the wheel shows its call and how sure it is: *"Laya: sounds like blame · 85% sure → Husband"*.
 - ↔️ **Flip** sends a question to the other person when you disagree with Laya. You can also pick a person yourself under **Who does it land on?**
-- 💡 **24 question ideas**, half praise and half blame, plus 🎲 **Surprise me**.
+- 💡 **24 question ideas**, half praise and half blame, shown four at a time, plus 🎲 **Surprise me**.
+- ⏳ **Spin waits for Laya.** If you hit Spin while Laya is still reading a new question, the button says *Asking Laya…* and the wheel spins once Laya answers (it waits 2.5 s at most). That way the landing always matches the verdict shown above the wheel.
 - 🎡 **Rigged, but it looks fair.** It picks where to stop first, then spins 5–7 full turns to get there, slowing down over 4–5 seconds.
 - 👆 **Grab it and flick it.** Flick it either way, as hard as you want. A harder flick means a longer spin, but it lands on the same slice.
 - 🔊 **Sound, made live in the browser.** A tick for every slice that passes, a fanfare for praise and a sad trombone for blame. No audio files.
 - 🎉 **Confetti** for praise, and 🤦🙃😬 raining down for blame. Both are switched off for people who turn on reduced motion.
-- 🎛️ **Set it up your way.** Change both names and the number of landing and decoy slices (up to 40 in total). The landing slices can be made tiny.
+- 🎛️ **Set it up your way.** Change both names and how many slices each person gets (up to 40 in total). It starts at an even 8 and 8, and the even-split buttons (8 to 40) keep it 50/50. Go 15 to 1 if you want the original meme look.
 - 🔗 **Share links** carry every setting. On phones, **Share** opens the phone's own share menu.
 - 🌗 **Light and dark mode.** It starts out matching your device and remembers your choice.
 
@@ -77,9 +78,9 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). There are 2
 flowchart LR
     Q([Your question]) --> L{Laya:<br/>praise or blame?}
     W[Word list<br/>right, advice… / mistakes, snores…] -. nudges when Laya is unsure .-> L
-    L -->|praise| G[Tiny slice = Wife<br/>everything else = Husband]
-    L -->|blame| B[Tiny slice = Husband<br/>everything else = Wife]
-    G --> S[Rigged spin<br/>lands on the tiny slice]
+    L -->|praise| G[Aim for a<br/>Wife slice]
+    L -->|blame| B[Aim for a<br/>Husband slice]
+    G --> S[Rigged spin on the same<br/>50/50 wheel]
     B --> S
     S --> R([🏆 or 🤦])
     style G fill:#e11d48,color:#fff,stroke:#be123c
@@ -122,7 +123,7 @@ const offset = direction > 0 ? mod(-angle - from, 360) : mod(from + angle, 360);
 const to     = from + direction * (turns * 360 + offset);   // turns = 5..7
 ```
 
-Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve starts fast and has a long, slow crawl at the end, so the last few ticks feel close. A test script tried 31,200 random spins covering every slice mix up to 40: **0 misses.**
+Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve starts fast and has a long, slow crawl at the end, so the last few ticks feel close. A test script tried 15,600 random spins, covering every Wife/Husband mix up to 40 slices and both verdicts: **0 misses.**
 
 </details>
 
@@ -132,8 +133,7 @@ Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve star
 | :-- | :-- | :-- |
 | `q` | The question | `Who is always right?` |
 | `w` / `l` | Who gets the credit / who gets the blame | `Wife` / `Husband` |
-| `nw` / `nl` | Number of landing / decoy slices (up to 40 in total) | `1` / `15` |
-| `tiny` | `0` makes the landing slices normal width | tiny |
+| `nw` / `nl` | Number of slices for the credit / blame person (up to 40 in total) | `8` / `8` |
 | `v` | `credit` or `blame` fixes the result instead of asking Laya | Laya decides |
 
 ## 🖥️ Hosting Laya

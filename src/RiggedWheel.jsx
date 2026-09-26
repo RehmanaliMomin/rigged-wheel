@@ -36,6 +36,7 @@ import {
 // to its address. Without it, the built-in word list decides.
 const LAYA_URL = (import.meta.env?.VITE_LAYA_URL || '').replace(/\/+$/, '');
 const LAYA_TIMEOUT_MS = 12000;
+const SPIN_WAIT_MS = 2500; // how long Spin waits for Laya on a question it's still reading
 const RULE_WEIGHT = 1; // how hard each matching word nudges Laya's answer (in log-odds)
 const DUTY_WEIGHT = 3; // "who should respect…" is a taunt; strong enough to overrule Laya
 const PRIVILEGE_WEIGHT = 2; // "who should pick…" is a perk
@@ -44,15 +45,14 @@ const DEFAULTS = {
   question: 'Who is always right?',
   good: 'Wife', // gets the credit
   bad: 'Husband', // gets the blame
-  decoyCount: 15,
-  answerCount: 1,
-  tiny: true,
+  goodCount: 8, // an even 50/50 wheel looks fair; it still always lands on the right person
+  badCount: 8,
 };
 const MAX_SLICES = 40;
-const QUICK_PICKS = [8, 12, 16, 20, 30, 40];
+const QUICK_PICKS = [8, 12, 16, 20, 30, 40]; // split evenly between the two names
+const IDEAS_SHOWN = 2; // question ideas shown per kind
 const MAX_QUESTION = 80;
 const MAX_NAME = 20;
-const TINY_FACTOR = 0.55; // answer slice width relative to an even slice
 const PALETTE = {
   good: ['#e11d48', '#9f1239'],
   bad: ['#3b82f6', '#1e40af'],
@@ -94,6 +94,13 @@ const SUGGESTIONS = {
   ],
 };
 const ALL_SUGGESTIONS = [...SUGGESTIONS.credit, ...SUGGESTIONS.blame];
+
+function pickIdeas() {
+  const sample = (list) => [...list].sort(() => Math.random() - 0.5).slice(0, IDEAS_SHOWN);
+  const credit = sample(SUGGESTIONS.credit).map((q) => ({ q, kind: 'credit' }));
+  const blame = sample(SUGGESTIONS.blame).map((q) => ({ q, kind: 'blame' }));
+  return credit.flatMap((c, i) => [c, blame[i]]);
+}
 
 // Fallback when Laya is asleep, and a nudge when Laya is unsure.
 const WORDS = {
@@ -234,29 +241,17 @@ function slicePath(start, end, r) {
   return `M0 0 L${x1} ${y1} A${r} ${r} 0 ${large} 1 ${x2} ${y2}Z`;
 }
 
-// The "answer" slices are where the wheel always lands; "decoys" fill the rest.
-function buildSlices(decoyCount, answerCount, tiny, answerColors, decoyColors) {
-  const total = decoyCount + answerCount;
-  const even = 360 / total;
-  const answerSize = tiny ? even * TINY_FACTOR : even;
-  const decoySize = (360 - answerSize * answerCount) / decoyCount;
-  // Spread the answer slices evenly around the wheel.
-  const answerIndexes = new Set(
-    Array.from({ length: answerCount }, (_, j) => Math.floor(((j + 0.5) * total) / answerCount)),
-  );
-  let angle = 0;
-  let decoysSoFar = 0;
+// Equal-width slices for both names, the smaller group spread evenly among the
+// larger one. The wheel doesn't depend on the question; only the landing does.
+function buildSlices(goodCount, badCount) {
+  const total = goodCount + badCount;
+  const size = 360 / total;
+  const [fewRole, fewCount, manyRole] = goodCount <= badCount ? ['good', goodCount, 'bad'] : ['bad', badCount, 'good'];
+  const fewIndexes = new Set(Array.from({ length: fewCount }, (_, j) => Math.floor(((j + 0.5) * total) / fewCount)));
+  const seen = { good: 0, bad: 0 };
   return Array.from({ length: total }, (_, i) => {
-    const isAnswer = answerIndexes.has(i);
-    const size = isAnswer ? answerSize : decoySize;
-    const slice = {
-      start: angle,
-      end: angle + size,
-      isAnswer,
-      color: isAnswer ? answerColors[0] : decoyColors[decoysSoFar++ % 2],
-    };
-    angle += size;
-    return slice;
+    const role = fewIndexes.has(i) ? fewRole : manyRole;
+    return { start: i * size, end: (i + 1) * size, role, color: PALETTE[role][seen[role]++ % 2] };
   });
 }
 
@@ -323,22 +318,21 @@ function readParams() {
   const text = (key, max, fallback) => (p.get(key) || '').trim().slice(0, max) || fallback;
   const int = (key) => parseInt(p.get(key), 10);
 
-  let answerCount = int('nw');
-  let decoyCount = int('nl');
-  const legacyTotal = int('n'); // old links: ?n=16 meant 15 decoys + 1 answer
-  if (Number.isNaN(answerCount)) answerCount = Number.isNaN(legacyTotal) ? DEFAULTS.answerCount : 1;
-  if (Number.isNaN(decoyCount)) decoyCount = Number.isNaN(legacyTotal) ? DEFAULTS.decoyCount : legacyTotal - 1;
-  answerCount = clamp(answerCount, 1, MAX_SLICES - 1);
-  decoyCount = clamp(decoyCount, 1, MAX_SLICES - answerCount);
+  let goodCount = int('nw');
+  let badCount = int('nl');
+  const legacyTotal = int('n'); // old links: ?n=16 meant 15 × loser + 1 × winner
+  if (Number.isNaN(goodCount)) goodCount = Number.isNaN(legacyTotal) ? DEFAULTS.goodCount : 1;
+  if (Number.isNaN(badCount)) badCount = Number.isNaN(legacyTotal) ? DEFAULTS.badCount : legacyTotal - 1;
+  goodCount = clamp(goodCount, 1, MAX_SLICES - 1);
+  badCount = clamp(badCount, 1, MAX_SLICES - goodCount);
   const v = p.get('v');
 
   return {
     question: text('q', MAX_QUESTION, DEFAULTS.question),
     good: text('w', MAX_NAME, DEFAULTS.good),
     bad: text('l', MAX_NAME, DEFAULTS.bad),
-    decoyCount,
-    answerCount,
-    tiny: p.get('tiny') !== '0',
+    goodCount,
+    badCount,
     override: v === 'credit' || v === 'blame' ? v : null,
     fromLink: ['q', 'w', 'l'].some((k) => p.has(k)),
   };
@@ -363,15 +357,16 @@ export default function RiggedWheel() {
   const [question, setQuestion] = useState(initial.question);
   const [good, setGood] = useState(initial.good);
   const [bad, setBad] = useState(initial.bad);
-  const [decoyCount, setDecoyCount] = useState(initial.decoyCount);
-  const [answerCount, setAnswerCount] = useState(initial.answerCount);
-  const [tiny, setTiny] = useState(initial.tiny);
+  const [goodCount, setGoodCount] = useState(initial.goodCount);
+  const [badCount, setBadCount] = useState(initial.badCount);
+  const [ideas, setIdeas] = useState(() => pickIdeas());
   const [override, setOverride] = useState(initial.override);
   const [laya, setLaya] = useState({ status: 'idle', key: '', p: null });
   const [frozen, setFrozen] = useState(null); // decision locked for the length of a spin
   const [theme, setTheme] = useState(initialTheme);
   const [panelOpen, setPanelOpen] = useState(!initial.fromLink);
   const [spinning, setSpinning] = useState(false);
+  const [waitingForLaya, setWaitingForLaya] = useState(false);
   const [result, setResult] = useState(null); // { verdict, index, answer, other, quip }
   const [tally, setTally] = useState({ spins: 0, good: 0, bad: 0 });
   const [muted, setMuted] = useState(false);
@@ -379,11 +374,11 @@ export default function RiggedWheel() {
   const [canShare] = useState(() => typeof navigator !== 'undefined' && !!navigator.share);
 
   const t = THEMES[theme];
-  const total = decoyCount + answerCount;
+  const total = goodCount + badCount;
 
   const wheelRef = useRef(null);
   const pointerRef = useRef(null);
-  const rotationRef = useRef(-180 / (initial.decoyCount + initial.answerCount)); // rest mid-way through slice 0
+  const rotationRef = useRef(-180 / (initial.goodCount + initial.badCount)); // rest mid-way through slice 0
   const rafRef = useRef(0);
   const spinningRef = useRef(false);
   const dirRef = useRef(1);
@@ -394,6 +389,8 @@ export default function RiggedWheel() {
   const lastQuipRef = useRef(-1);
   const layaCacheRef = useRef(new Map());
   const blameShapesRef = useRef(null);
+  const pendingSpinRef = useRef(null);
+  const spinRef = useRef(null);
 
   const shownQuestion = question.trim() || DEFAULTS.question;
   const questionKey = shownQuestion.toLowerCase().replace(/\s+/g, ' ');
@@ -410,33 +407,25 @@ export default function RiggedWheel() {
   const answerName = isCredit ? goodName : badName;
   const decoyName = isCredit ? badName : goodName;
   const answerRole = isCredit ? 'good' : 'bad';
-  const decoyRole = isCredit ? 'bad' : 'good';
   const layaThinking = !override && laya.key === questionKey && laya.status === 'loading';
 
-  const slices = useMemo(
-    () => buildSlices(decoyCount, answerCount, tiny, PALETTE[answerRole], PALETTE[decoyRole]),
-    [decoyCount, answerCount, tiny, answerRole, decoyRole],
-  );
+  const slices = useMemo(() => buildSlices(goodCount, badCount), [goodCount, badCount]);
   const slicesRef = useRef(slices);
   const lastSliceRef = useRef(sliceUnderPointer(slices, rotationRef.current));
-  const decoyPct = Math.round(
-    (slices.filter((s) => !s.isAnswer).reduce((sum, s) => sum + s.end - s.start, 0) / 360) * 100,
-  );
-  const landedSlice =
-    result && !spinning && result.verdict === decision.verdict ? slices[result.index] : null;
+  const otherPct = Math.round(((isCredit ? badCount : goodCount) / total) * 100);
+  const landedSlice = result && !spinning ? slices[result.index] : null;
 
   const shareUrl = useMemo(() => {
     const params = new URLSearchParams({
       q: shownQuestion,
       w: goodName,
       l: badName,
-      nl: String(decoyCount),
-      nw: String(answerCount),
+      nw: String(goodCount),
+      nl: String(badCount),
     });
-    if (!tiny) params.set('tiny', '0');
     if (override) params.set('v', override);
     return `${window.location.origin}${window.location.pathname}?${params}`;
-  }, [shownQuestion, goodName, badName, decoyCount, answerCount, tiny, override]);
+  }, [shownQuestion, goodName, badName, goodCount, badCount, override]);
 
   useLayoutEffect(() => {
     wheelRef.current.style.transform = `rotate(${rotationRef.current}deg)`;
@@ -496,6 +485,11 @@ export default function RiggedWheel() {
       ctrl.abort();
     };
   }, [questionKey, shownQuestion]);
+
+  // A spin requested while Laya was reading starts as soon as Laya answers.
+  useEffect(() => {
+    if (pendingSpinRef.current && !layaThinking) releasePendingSpin();
+  });
 
   useEffect(
     () => () => {
@@ -597,6 +591,28 @@ export default function RiggedWheel() {
     }
   }
 
+  // Spin now, or once Laya has answered if it's still reading the question,
+  // so the landing always matches the verdict shown above the wheel.
+  function requestSpin(opts) {
+    if (spinningRef.current || pendingSpinRef.current) return;
+    if (!layaThinking) {
+      spin(opts);
+      return;
+    }
+    getAudio();
+    pendingSpinRef.current = opts ?? {};
+    setWaitingForLaya(true);
+    timersRef.current.push(setTimeout(releasePendingSpin, SPIN_WAIT_MS));
+  }
+
+  function releasePendingSpin() {
+    const opts = pendingSpinRef.current;
+    if (!opts) return;
+    pendingSpinRef.current = null;
+    setWaitingForLaya(false);
+    spinRef.current(opts); // latest render's spin, so it sees the latest verdict
+  }
+
   // The rig: pick the landing angle first (somewhere inside a random
   // answer slice), then work out a rotation of N full turns that ends
   // exactly there. Spin power only changes how many turns and how long.
@@ -604,7 +620,7 @@ export default function RiggedWheel() {
     if (spinningRef.current) return;
     getAudio();
 
-    const answers = slicesRef.current.filter((s) => s.isAnswer);
+    const answers = slicesRef.current.filter((s) => s.role === answerRole);
     const target = answers[Math.floor(Math.random() * answers.length)];
     const angle = target.start + (target.end - target.start) * (0.15 + Math.random() * 0.7);
     const from = rotationRef.current;
@@ -613,7 +629,7 @@ export default function RiggedWheel() {
     const to = from + direction * (turns * 360 + offset);
     const duration = 4000 + power * 1000; // 4-5 s
     const startedAt = performance.now();
-    const locked = { ...decision, answer: answerName, other: decoyName, pct: decoyPct };
+    const locked = { ...decision, role: answerRole, answer: answerName, other: decoyName, pct: otherPct };
 
     spinningRef.current = true;
     dirRef.current = direction;
@@ -630,6 +646,8 @@ export default function RiggedWheel() {
     rafRef.current = requestAnimationFrame(step);
   }
 
+  spinRef.current = spin;
+
   function finish(locked) {
     const deg = mod(rotationRef.current, 360);
     rotationRef.current = deg;
@@ -645,8 +663,8 @@ export default function RiggedWheel() {
     setSpinning(false);
     setFrozen(null);
     setTally((s) => ({ ...s, spins: s.spins + 1, [role]: s[role] + 1 }));
-    setResult({ verdict: locked.verdict, index, answer: locked.answer, other: locked.other, pct: locked.pct, quip });
-    if (slicesRef.current[index].isAnswer) celebrate(locked.verdict);
+    setResult({ verdict: locked.verdict, role: locked.role, index, answer: locked.answer, other: locked.other, pct: locked.pct, quip });
+    if (slicesRef.current[index].role === locked.role) celebrate(locked.verdict);
   }
 
   function celebrate(verdict) {
@@ -714,7 +732,7 @@ export default function RiggedWheel() {
     const last = drag.samples[drag.samples.length - 1];
     const velocity = (last.r - first.r) / Math.max(e.timeStamp - first.t, 1);
     if (Math.abs(velocity) > FLICK_MIN) {
-      spin({ direction: Math.sign(velocity), power: Math.min(1, (Math.abs(velocity) - FLICK_MIN) / 1.5) });
+      requestSpin({ direction: Math.sign(velocity), power: Math.min(1, (Math.abs(velocity) - FLICK_MIN) / 1.5) });
     }
   }
 
@@ -757,9 +775,8 @@ export default function RiggedWheel() {
     askQuestion(DEFAULTS.question);
     setGood(DEFAULTS.good);
     setBad(DEFAULTS.bad);
-    setDecoyCount(DEFAULTS.decoyCount);
-    setAnswerCount(DEFAULTS.answerCount);
-    setTiny(DEFAULTS.tiny);
+    setGoodCount(DEFAULTS.goodCount);
+    setBadCount(DEFAULTS.badCount);
   }
 
   /* ---------- render ---------- */
@@ -920,7 +937,7 @@ export default function RiggedWheel() {
                   <circle r="206" fill={t.rim} />
                   <circle r={R + 2} fill="#fff" />
                   {slices.map((s, i) => {
-                    const text = s.isAnswer ? answerName : decoyName;
+                    const text = s.role === 'good' ? goodName : badName;
                     return (
                       <g key={i}>
                         <path d={slicePath(s.start, s.end, R)} fill={s.color} stroke="#fff" strokeWidth="2" strokeLinejoin="round" />
@@ -941,7 +958,7 @@ export default function RiggedWheel() {
                       </g>
                     );
                   })}
-                  {landedSlice?.isAnswer && (
+                  {landedSlice && landedSlice.role === result.role && (
                     <path
                       d={slicePath(landedSlice.start, landedSlice.end, R)}
                       fill="none"
@@ -971,8 +988,8 @@ export default function RiggedWheel() {
               {/* Hub doubles as a spin button */}
               <button
                 type="button"
-                onClick={() => spin()}
-                disabled={spinning}
+                onClick={() => requestSpin()}
+                disabled={spinning || waitingForLaya}
                 aria-label="Spin the wheel"
                 className={`absolute left-1/2 top-1/2 grid h-[20%] w-[20%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-lg ring-4 transition hover:scale-105 disabled:hover:scale-100 ${t.hub}`}
               >
@@ -995,12 +1012,12 @@ export default function RiggedWheel() {
 
             <button
               type="button"
-              onClick={() => spin()}
-              disabled={spinning}
+              onClick={() => requestSpin()}
+              disabled={spinning || waitingForLaya}
               className={`group mt-10 inline-flex items-center gap-2 rounded-full bg-rose-600 px-10 py-4 text-lg font-black uppercase tracking-wider text-white shadow-lg shadow-rose-600/30 transition hover:-translate-y-0.5 hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-rose-600 ${t.focusRing}`}
             >
               <RotateCw className={`h-5 w-5 ${spinning ? 'animate-spin' : 'transition-transform group-hover:rotate-90'}`} />
-              {spinning ? 'Spinning…' : tally.spins ? 'Spin again' : 'Spin'}
+              {waitingForLaya ? 'Asking Laya…' : spinning ? 'Spinning…' : tally.spins ? 'Spin again' : 'Spin'}
             </button>
 
             <div aria-live="polite" className="mt-6 flex min-h-[5.5rem] flex-col items-center text-center">
@@ -1071,38 +1088,42 @@ export default function RiggedWheel() {
                   </Field>
 
                   <div>
-                    <SectionLabel t={t} hint={LAYA_URL ? 'Laya sorts them for you' : 'Sorted by the word list'}>
+                    <SectionLabel
+                      t={t}
+                      hint={
+                        <button
+                          type="button"
+                          disabled={spinning}
+                          onClick={() => setIdeas(pickIdeas())}
+                          className="inline-flex items-center gap-1 font-semibold transition hover:text-rose-500 disabled:cursor-not-allowed"
+                        >
+                          <Dices className="h-3.5 w-3.5" />
+                          More ideas
+                        </button>
+                      }
+                    >
                       <span className="inline-flex items-center gap-1.5">
                         <Lightbulb className="h-3.5 w-3.5" />
                         Question ideas
                       </span>
                     </SectionLabel>
-                    {[
-                      ['credit', ThumbsUp, `Praise → ${goodName}`],
-                      ['blame', ThumbsDown, `Blame → ${badName}`],
-                    ].map(([kind, Icon, heading]) => (
-                      <div key={kind} className="mt-2">
-                        <p className={`mb-1.5 flex items-center gap-1.5 text-xs font-semibold ${t.muted}`}>
-                          <Icon className="h-3.5 w-3.5" />
-                          {heading}
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {SUGGESTIONS[kind].map((q) => (
-                            <button
-                              key={q}
-                              type="button"
-                              disabled={spinning}
-                              onClick={() => askQuestion(q)}
-                              className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                q === shownQuestion ? roleChip(kind === 'credit' ? 'good' : 'bad') : t.idea
-                              }`}
-                            >
-                              {q}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                    <div className="flex flex-wrap gap-1.5">
+                      {ideas.map(({ q, kind }) => (
+                        <button
+                          key={q}
+                          type="button"
+                          disabled={spinning}
+                          onClick={() => askQuestion(q)}
+                          title={kind === 'credit' ? `Praise → ${goodName}` : `Blame → ${badName}`}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            q === shownQuestion ? roleChip(kind === 'credit' ? 'good' : 'bad') : t.idea
+                          }`}
+                        >
+                          {kind === 'credit' ? <ThumbsUp className="h-3 w-3 text-rose-500" /> : <ThumbsDown className="h-3 w-3 text-blue-500" />}
+                          {q}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
@@ -1160,67 +1181,49 @@ export default function RiggedWheel() {
                     <div className="grid grid-cols-2 gap-3">
                       <Stepper
                         t={t}
-                        label="Landing slices"
-                        name="landing slices"
-                        value={answerCount}
+                        label={<Dot color={PALETTE.good[0]}>{goodName}</Dot>}
+                        name={`${goodName} slices`}
+                        value={goodCount}
                         min={1}
-                        max={MAX_SLICES - decoyCount}
-                        onChange={setAnswerCount}
+                        max={MAX_SLICES - badCount}
+                        onChange={setGoodCount}
                         disabled={spinning}
                       />
                       <Stepper
                         t={t}
-                        label="Decoy slices"
-                        name="decoy slices"
-                        value={decoyCount}
+                        label={<Dot color={PALETTE.bad[0]}>{badName}</Dot>}
+                        name={`${badName} slices`}
+                        value={badCount}
                         min={1}
-                        max={MAX_SLICES - answerCount}
-                        onChange={setDecoyCount}
+                        max={MAX_SLICES - goodCount}
+                        onChange={setBadCount}
                         disabled={spinning}
                       />
                     </div>
-                    <p className={`mt-1.5 text-xs ${t.subtle}`}>
-                      Right now: {answerCount} × {answerName}, {decoyCount} × {decoyName}.
-                    </p>
 
-                    <p className={`mb-1.5 mt-3 text-xs font-medium ${t.subtle}`}>Quick picks (total slices)</p>
-                    <div role="radiogroup" aria-label="Total slices" className={`grid grid-cols-6 gap-1 rounded-xl p-1 ${t.seg}`}>
-                      {QUICK_PICKS.map((n) => (
-                        <button
-                          key={n}
-                          type="button"
-                          role="radio"
-                          aria-checked={total === n}
-                          disabled={spinning || n - answerCount < 1}
-                          onClick={() => setDecoyCount(n - answerCount)}
-                          className={`rounded-lg py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                            total === n ? t.segOn : t.segOff
-                          }`}
-                        >
-                          {n}
-                        </button>
-                      ))}
+                    <p className={`mb-1.5 mt-3 text-xs font-medium ${t.subtle}`}>Even split</p>
+                    <div role="radiogroup" aria-label="Even split" className={`grid grid-cols-6 gap-1 rounded-xl p-1 ${t.seg}`}>
+                      {QUICK_PICKS.map((n) => {
+                        const on = goodCount === n / 2 && badCount === n / 2;
+                        return (
+                          <button
+                            key={n}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            disabled={spinning}
+                            onClick={() => {
+                              setGoodCount(n / 2);
+                              setBadCount(n / 2);
+                            }}
+                            className={`rounded-lg py-2 text-sm font-bold transition disabled:cursor-not-allowed ${on ? t.segOn : t.segOff}`}
+                          >
+                            {n}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={tiny}
-                    disabled={spinning}
-                    onClick={() => setTiny((v) => !v)}
-                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left ring-1 transition disabled:cursor-not-allowed disabled:opacity-60 ${t.well}`}
-                  >
-                    <span>
-                      <span className="block text-sm font-semibold">Tiny landing {answerCount === 1 ? 'slice' : 'slices'}</span>
-                      <span className={`block text-xs ${t.subtle}`}>The smaller it is, the funnier the result.</span>
-                    </span>
-                    <span className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${tiny ? 'bg-rose-600' : t.switchOff}`}>
-                      <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${tiny ? 'left-[22px]' : 'left-0.5'}`}
-                      />
-                    </span>
-                  </button>
 
                   <button
                     type="button"
