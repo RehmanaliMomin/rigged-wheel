@@ -61,7 +61,7 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 ## ✨ Features
 
 - 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame. The page never shows that, so nothing gives the ending away. Add `?debug=1` to the link to see Laya's call: *"Laya: sounds like blame · 85% sure → Shauhar"*.
-- 🙃 **"Rigged?"** Tap it in the footer and the wheel confesses.
+- 🙃 **"Rigged?"** Tap it in the footer to see what Laya decided about the current question, e.g. *"Laya: sounds like praise · 67% sure → Bairu"*.
 - 🚫 **No appeals.** There's no way to overrule the wheel or pick the answer yourself. Praise always goes to Bairu, and blame always goes to Shauhar.
 - 💡 **24 question ideas**, half praise and half blame, shown four at a time, plus 🎲 **Surprise me**.
 - ⏳ **Spin waits for Laya.** If you hit Spin while Laya is still reading a new question, the button says *Get ready…* and the wheel spins once Laya answers (it waits 2.5 s at most). That way the landing always matches Laya's call.

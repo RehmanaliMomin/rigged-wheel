@@ -810,6 +810,17 @@ export default function RiggedWheel() {
           ? 'Laya scored the question. If it was unsure, the word list tipped it.'
         : undefined;
 
+  const verdictPill = (
+    <span
+      title={verdictTitle}
+      className={`inline-flex items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 text-sm font-medium ring-1 ${t.verdict}`}
+    >
+      {verdictIcon}
+      <span>{verdictText}</span>
+      <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${roleChip(answerRole)}`}>→ {answerName}</span>
+    </span>
+  );
+
   return (
     <div
       className={`min-h-screen antialiased transition-colors ${t.text}`}
@@ -861,18 +872,7 @@ export default function RiggedWheel() {
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               {/* Laya's verdict would give the ending away, so only ?debug=1 shows it */}
-              {initial.debug && (
-                <span
-                  title={verdictTitle}
-                  className={`inline-flex items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 text-sm font-medium ring-1 ${t.verdict}`}
-                >
-                  {verdictIcon}
-                  <span>{verdictText}</span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${roleChip(answerRole)}`}>
-                    → {answerName}
-                  </span>
-                </span>
-              )}
+              {initial.debug && verdictPill}
               <button
                 type="button"
                 disabled={spinning}
@@ -1205,22 +1205,9 @@ export default function RiggedWheel() {
             </button>
           </p>
           {riggedOpen && (
-            <p
-              className={`mx-auto mt-3 max-w-md rounded-2xl px-4 py-3 text-sm ring-1 ${t.verdict}`}
-              style={{ animation: 'rw-pop .35s ease-out' }}
-            >
-              Yes. 🙃 An AI called{' '}
-              <a
-                href="https://huggingface.co/convaiinnovations/laya"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold underline decoration-dotted underline-offset-2 hover:text-rose-500"
-              >
-                Laya
-              </a>{' '}
-              reads every question. Anything nice lands on {goodName}. Anything else lands on {badName}. The 50/50
-              wheel is just for show.
-            </p>
+            <div className="mt-3 flex justify-center" style={{ animation: 'rw-pop .35s ease-out' }}>
+              {verdictPill}
+            </div>
           )}
         </footer>
       </div>
