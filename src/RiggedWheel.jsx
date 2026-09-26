@@ -32,6 +32,7 @@ import {
 // to its address. Without it, the built-in word list decides.
 const LAYA_URL = (import.meta.env?.VITE_LAYA_URL || '').replace(/\/+$/, '');
 const LAYA_TIMEOUT_MS = 12000;
+const PUBLIC_URL = 'https://rehmanalimomin.github.io/rigged-wheel/'; // share links from a local copy point here
 const SPIN_WAIT_MS = 2500; // how long Spin waits for Laya on a question it's still reading
 const RULE_WEIGHT = 1; // how hard each matching word nudges Laya's answer (in log-odds)
 const DUTY_WEIGHT = 3; // "who should respect…" is a taunt; strong enough to overrule Laya
@@ -50,9 +51,9 @@ const IDEAS_SHOWN = 2; // question ideas shown per kind
 const MAX_QUESTION = 80;
 // Muted on purpose: dusty rose and slate blue are easier on the eyes than pure red/blue.
 const PALETTE = {
-  good: ['#c96b78', '#a9535f'],
-  bad: ['#6a86b8', '#4d6795'],
-};
+  good: '#c96b78', // dusty rose
+  bad: '#6a86b8', // slate blue
+}
 const BULB = '#f1dfae';
 const HIGHLIGHT = '#f6e7bd';
 const R = 188; // slice radius in SVG units (viewBox is 420 wide)
@@ -247,10 +248,9 @@ function buildSlices(goodCount, badCount) {
   const size = 360 / total;
   const [fewRole, fewCount, manyRole] = goodCount <= badCount ? ['good', goodCount, 'bad'] : ['bad', badCount, 'good'];
   const fewIndexes = new Set(Array.from({ length: fewCount }, (_, j) => Math.floor(((j + 0.5) * total) / fewCount)));
-  const seen = { good: 0, bad: 0 };
   return Array.from({ length: total }, (_, i) => {
     const role = fewIndexes.has(i) ? fewRole : manyRole;
-    return { start: i * size, end: (i + 1) * size, role, color: PALETTE[role][seen[role]++ % 2] };
+    return { start: i * size, end: (i + 1) * size, role, color: PALETTE[role] };
   });
 }
 
@@ -414,7 +414,9 @@ export default function RiggedWheel() {
       nw: String(goodCount),
       nl: String(badCount),
     });
-    return `${window.location.origin}${window.location.pathname}?${params}`;
+    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+    const base = local ? PUBLIC_URL : `${window.location.origin}${window.location.pathname}`;
+    return `${base}?${params}`;
   }, [shownQuestion, goodCount, badCount]);
 
   useLayoutEffect(() => {
@@ -661,7 +663,7 @@ export default function RiggedWheel() {
     const base = { disableForReducedMotion: true, zIndex: 50 };
     if (verdict === 'credit') {
       playFanfare();
-      const colors = [...PALETTE.good, '#e2a7b0', BULB, PALETTE.bad[0]];
+      const colors = [PALETTE.good, '#e2a7b0', BULB, PALETTE.bad];
       confetti({ ...base, colors, particleCount: 140, spread: 90, startVelocity: 45, origin: { y: 0.55 } });
       timersRef.current.push(
         setTimeout(() => {
@@ -1097,7 +1099,7 @@ export default function RiggedWheel() {
                     <div className="grid grid-cols-2 gap-3">
                       <Stepper
                         t={t}
-                        label={<Dot color={PALETTE.good[0]}>{goodName}</Dot>}
+                        label={<Dot color={PALETTE.good}>{goodName}</Dot>}
                         name={`${goodName} slices`}
                         value={goodCount}
                         min={1}
@@ -1107,7 +1109,7 @@ export default function RiggedWheel() {
                       />
                       <Stepper
                         t={t}
-                        label={<Dot color={PALETTE.bad[0]}>{badName}</Dot>}
+                        label={<Dot color={PALETTE.bad}>{badName}</Dot>}
                         name={`${badName} slices`}
                         value={badCount}
                         min={1}
