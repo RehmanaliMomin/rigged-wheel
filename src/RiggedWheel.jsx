@@ -18,7 +18,6 @@ import {
   Share2,
   Sun,
   ThumbsDown,
-  ThumbsUp,
   Trophy,
   Volume2,
   VolumeX,
@@ -326,6 +325,7 @@ function readParams() {
     goodCount,
     badCount,
     fromLink: p.has('q'),
+    debug: p.get('debug') === '1', // shows Laya's verdict above the wheel
   };
 }
 
@@ -359,6 +359,7 @@ export default function RiggedWheel() {
   const [tally, setTally] = useState({ spins: 0, good: 0, bad: 0 });
   const [muted, setMuted] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [riggedOpen, setRiggedOpen] = useState(false);
   const [canShare] = useState(() => typeof navigator !== 'undefined' && !!navigator.share);
 
   const t = THEMES[theme];
@@ -858,18 +859,20 @@ export default function RiggedWheel() {
               {shownQuestion}
             </h2>
 
-            {/* Who it lands on, and why */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <span
-                title={verdictTitle}
-                className={`inline-flex items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 text-sm font-medium ring-1 ${t.verdict}`}
-              >
-                {verdictIcon}
-                <span>{verdictText}</span>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${roleChip(answerRole)}`}>
-                  → {answerName}
+              {/* Laya's verdict would give the ending away, so only ?debug=1 shows it */}
+              {initial.debug && (
+                <span
+                  title={verdictTitle}
+                  className={`inline-flex items-center gap-2 rounded-full py-1.5 pl-3 pr-1.5 text-sm font-medium ring-1 ${t.verdict}`}
+                >
+                  {verdictIcon}
+                  <span>{verdictText}</span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${roleChip(answerRole)}`}>
+                    → {answerName}
+                  </span>
                 </span>
-              </span>
+              )}
               <button
                 type="button"
                 disabled={spinning}
@@ -979,7 +982,7 @@ export default function RiggedWheel() {
               className={`group mt-10 inline-flex items-center gap-2 rounded-full bg-rose-600 px-10 py-4 text-lg font-black uppercase tracking-wider text-white shadow-lg shadow-rose-600/30 transition hover:-translate-y-0.5 hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-rose-600 ${t.focusRing}`}
             >
               <RotateCw className={`h-5 w-5 ${spinning ? 'animate-spin' : 'transition-transform group-hover:rotate-90'}`} />
-              {waitingForLaya ? 'Asking Laya…' : spinning ? 'Spinning…' : tally.spins ? 'Spin again' : 'Spin'}
+              {waitingForLaya ? 'Get ready…' : spinning ? 'Spinning…' : tally.spins ? 'Spin again' : 'Spin'}
             </button>
 
             <div aria-live="polite" className="mt-6 flex min-h-[5.5rem] flex-col items-center text-center">
@@ -1067,18 +1070,16 @@ export default function RiggedWheel() {
                       </span>
                     </SectionLabel>
                     <div className="flex flex-wrap gap-1.5">
-                      {ideas.map(({ q, kind }) => (
+                      {ideas.map(({ q }) => (
                         <button
                           key={q}
                           type="button"
                           disabled={spinning}
                           onClick={() => askQuestion(q)}
-                          title={kind === 'credit' ? `Praise → ${goodName}` : `Blame → ${badName}`}
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                            q === shownQuestion ? roleChip(kind === 'credit' ? 'good' : 'bad') : t.idea
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            q === shownQuestion ? `${t.segOn} ring-transparent` : t.idea
                           }`}
                         >
-                          {kind === 'credit' ? <ThumbsUp className="h-3 w-3 text-rose-500" /> : <ThumbsDown className="h-3 w-3 text-blue-500" />}
                           {q}
                         </button>
                       ))}
@@ -1185,23 +1186,42 @@ export default function RiggedWheel() {
                 </button>
               )}
               <p className={`mt-3 text-xs ${t.subtle}`} aria-live="polite">
-                {copied ? 'Link copied. Send it and wait.' : 'Includes your question, names and slice counts.'}
+                {copied ? 'Link copied. Send it and wait.' : 'Includes your question and slice counts.'}
               </p>
             </div>
           </aside>
         </main>
 
         <footer className={`mt-10 text-center text-xs ${t.subtle}`}>
-          *Randomness not included. Praise-or-blame calls by{' '}
-          <a
-            href="https://huggingface.co/convaiinnovations/laya"
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-dotted underline-offset-2 hover:text-rose-500"
-          >
-            Laya
-          </a>
-          . Results are final and binding in most households.
+          <p>
+            *Randomness not included. Results are final and binding in most households. ·{' '}
+            <button
+              type="button"
+              onClick={() => setRiggedOpen((o) => !o)}
+              aria-expanded={riggedOpen}
+              className="font-semibold underline decoration-dotted underline-offset-2 transition hover:text-rose-500"
+            >
+              Rigged?
+            </button>
+          </p>
+          {riggedOpen && (
+            <p
+              className={`mx-auto mt-3 max-w-md rounded-2xl px-4 py-3 text-sm ring-1 ${t.verdict}`}
+              style={{ animation: 'rw-pop .35s ease-out' }}
+            >
+              Yes. 🙃 An AI called{' '}
+              <a
+                href="https://huggingface.co/convaiinnovations/laya"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold underline decoration-dotted underline-offset-2 hover:text-rose-500"
+              >
+                Laya
+              </a>{' '}
+              reads every question. Anything nice lands on {goodName}. Anything else lands on {badName}. The 50/50
+              wheel is just for show.
+            </p>
+          )}
         </footer>
       </div>
     </div>

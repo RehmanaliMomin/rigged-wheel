@@ -54,16 +54,17 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png" />
   <source media="(prefers-color-scheme: light)" srcset="docs/screenshot-light.png" />
-  <img src="docs/screenshot-light.png" alt="The full app: the wheel with Laya's verdict above it, and the question ideas and settings on the right." />
+  <img src="docs/screenshot-light.png" alt="The full app: the question, the 50/50 wheel, and the question ideas and settings on the right." />
 </picture>
 <p align="center"><sub>This screenshot follows your GitHub theme. Switch between light and dark to see both.</sub></p>
 
 ## ✨ Features
 
-- 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame, and the wheel shows its call and how sure it is: *"Laya: sounds like blame · 85% sure → Shauhar"*.
+- 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame. The page never shows that, so nothing gives the ending away. Add `?debug=1` to the link to see Laya's call: *"Laya: sounds like blame · 85% sure → Shauhar"*.
+- 🙃 **"Rigged?"** Tap it in the footer and the wheel confesses.
 - 🚫 **No appeals.** There's no way to overrule the wheel or pick the answer yourself. Praise always goes to Bairu, and blame always goes to Shauhar.
 - 💡 **24 question ideas**, half praise and half blame, shown four at a time, plus 🎲 **Surprise me**.
-- ⏳ **Spin waits for Laya.** If you hit Spin while Laya is still reading a new question, the button says *Asking Laya…* and the wheel spins once Laya answers (it waits 2.5 s at most). That way the landing always matches the verdict shown above the wheel.
+- ⏳ **Spin waits for Laya.** If you hit Spin while Laya is still reading a new question, the button says *Get ready…* and the wheel spins once Laya answers (it waits 2.5 s at most). That way the landing always matches Laya's call.
 - 🎡 **Rigged, but it looks fair.** It picks where to stop first, then spins 5–7 full turns to get there, slowing down over 4–5 seconds.
 - 👆 **Grab it and flick it.** Flick it either way, as hard as you want. A harder flick means a longer spin, but it lands on the same slice.
 - 🔊 **Sound, made live in the browser.** A tick for every slice that passes, a fanfare for praise and a sad trombone for blame. No audio files.
@@ -133,6 +134,7 @@ Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve star
 | Param | What it sets | Default |
 | :-- | :-- | :-- |
 | `q` | The question | `Who is always right?` |
+| `debug` | `1` shows Laya's verdict above the wheel (for testing; never added to share links) | off |
 | `nw` / `nl` | Number of slices for the credit / blame person (up to 40 in total) | `8` / `8` |
 
 ## 🖥️ Hosting Laya
