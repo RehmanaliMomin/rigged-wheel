@@ -1,14 +1,14 @@
 <div align="center">
 
 <a href="https://rehmanalimomin.github.io/rigged-wheel/">
-  <img src="docs/hero.svg" alt="A fair-looking wheel, 8 Bairu and 8 Husband slices, spins and lands on Bairu." width="100%" />
+  <img src="docs/hero.svg" alt="A fair-looking wheel, 8 Bairu and 8 Shauhar slices, spins and lands on Bairu." width="100%" />
 </a>
 
 # The Totally Fair Wheel
 
 **Settle any argument with certified randomness.\***
 
-<sub>\*Praise always goes to Bairu. Blame always goes to Husband. An AI reads the question to decide which.</sub>
+<sub>\*Praise always goes to Bairu. Blame always goes to Shauhar. An AI reads the question to decide which.</sub>
 
 <br />
 
@@ -26,9 +26,9 @@
 
 ## 🎯 Type any question, and the wheel knows who it's about
 
-Ask something nice and the wheel lands on **Bairu**. Ask something embarrassing and it lands on **Husband**. The wheel is an honest-looking 50/50 split, and it never changes when you change the question. Only the landing is rigged.
+Ask something nice and the wheel lands on **Bairu**. Ask something embarrassing and it lands on **Shauhar**. The wheel is an honest-looking 50/50 split, and it never changes when you change the question. Only the landing is rigged.
 
-| 💐 Praise, so it's Bairu | 🙃 Blame, so it's Husband |
+| 💐 Praise, so it's Bairu | 🙃 Blame, so it's Shauhar |
 | :-- | :-- |
 | [Who is always right?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+is+always+right%3F) | [Who makes more mistakes?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+makes+more+mistakes%3F) |
 | [Whose advice should we follow?](https://rehmanalimomin.github.io/rigged-wheel/?q=Whose+advice+should+we+follow%3F) | [Who snores louder?](https://rehmanalimomin.github.io/rigged-wheel/?q=Who+snores+louder%3F) |
@@ -41,12 +41,12 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="docs/demo-praise.gif" alt="Who is always right? A fair-looking 8 Bairu / 8 Husband wheel spins and lands on Bairu. Confetti and a fanfare." width="100%" />
-      <br /><sub><b>Praise:</b> 8 × Bairu, 8 × Husband. Lands on Bairu. Fanfare and confetti.</sub>
+      <img src="docs/demo-praise.gif" alt="Who is always right? A fair-looking 8 Bairu / 8 Shauhar wheel spins and lands on Bairu. Confetti and a fanfare." width="100%" />
+      <br /><sub><b>Praise:</b> 8 × Bairu, 8 × Shauhar. Lands on Bairu. Fanfare and confetti.</sub>
     </td>
     <td align="center" width="50%">
-      <img src="docs/demo-blame.gif" alt="Who makes more mistakes? The same 50/50 wheel spins and lands on Husband. Facepalm emoji rain." width="100%" />
-      <br /><sub><b>Blame:</b> the same wheel. Lands on Husband. Sad trombone and 🤦.</sub>
+      <img src="docs/demo-blame.gif" alt="Who makes more mistakes? The same 50/50 wheel spins and lands on Shauhar. Facepalm emoji rain." width="100%" />
+      <br /><sub><b>Blame:</b> the same wheel. Lands on Shauhar. Sad trombone and 🤦.</sub>
     </td>
   </tr>
 </table>
@@ -60,8 +60,8 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 
 ## ✨ Features
 
-- 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame, and the wheel shows its call and how sure it is: *"Laya: sounds like blame · 85% sure → Husband"*.
-- 🚫 **No appeals.** There's no way to overrule the wheel or pick the answer yourself. Praise always goes to Bairu, and blame always goes to Husband.
+- 🧠 **Laya reads the question.** [Laya](https://huggingface.co/convaiinnovations/laya) is a small AI model that sorts text into categories. It decides whether being the answer is praise or blame, and the wheel shows its call and how sure it is: *"Laya: sounds like blame · 85% sure → Shauhar"*.
+- 🚫 **No appeals.** There's no way to overrule the wheel or pick the answer yourself. Praise always goes to Bairu, and blame always goes to Shauhar.
 - 💡 **24 question ideas**, half praise and half blame, shown four at a time, plus 🎲 **Surprise me**.
 - ⏳ **Spin waits for Laya.** If you hit Spin while Laya is still reading a new question, the button says *Asking Laya…* and the wheel spins once Laya answers (it waits 2.5 s at most). That way the landing always matches the verdict shown above the wheel.
 - 🎡 **Rigged, but it looks fair.** It picks where to stop first, then spins 5–7 full turns to get there, slowing down over 4–5 seconds.
@@ -69,7 +69,7 @@ Or [write your own](https://rehmanalimomin.github.io/rigged-wheel/). The app sho
 - 🔊 **Sound, made live in the browser.** A tick for every slice that passes, a fanfare for praise and a sad trombone for blame. No audio files.
 - 🎉 **Confetti** for praise, and 🤦🙃😬 raining down for blame. Both are switched off for people who turn on reduced motion.
 - 🎛️ **Set it up your way.** Choose how many slices each person gets (up to 40 in total). It starts at an even 8 and 8, and the even-split buttons (8 to 40) keep it 50/50. Go 15 to 1 if you want the original meme look.
-- 🔒 **Bairu always gets the credit, and Husband always gets the blame.** The names are fixed, and a share link can't swap them.
+- 🔒 **Bairu always gets the credit, and Shauhar always gets the blame.** The names are fixed, and a share link can't swap them.
 - 🔗 **Share links** carry the question and slice counts. On phones, **Share** opens the phone's own share menu.
 - 🌗 **Light and dark mode.** It starts out matching your device and remembers your choice.
 
@@ -80,7 +80,7 @@ flowchart LR
     Q([Your question]) --> L{Laya:<br/>praise or blame?}
     W[Word list<br/>right, advice… / mistakes, snores…] -. nudges when Laya is unsure .-> L
     L -->|praise| G[Aim for a<br/>Bairu slice]
-    L -->|blame| B[Aim for a<br/>Husband slice]
+    L -->|blame| B[Aim for a<br/>Shauhar slice]
     G --> S[Rigged spin on the same<br/>50/50 wheel]
     B --> S
     S --> R([🏆 or 🤦])
@@ -91,7 +91,7 @@ flowchart LR
 
 - **Laya** gets the question with one instruction: *"Is being picked as the answer a good thing or a bad thing for that person?"* It sends back how likely the answer is praise. It runs on a CPU and answers in about 30 ms.
 - **A built-in word list** (praise words like *right*, *advice*, *better*; blame words like *mistakes*, *snores*, *late*; "never" flips a word) adds a nudge to Laya's answer. That only changes the result when Laya is unsure.
-- **"Who should…" questions are taunts.** When the person picked is the one who *should / needs to / has to* do something ("Who should respect the other more?", "Who needs to listen more?"), the word list overrules Laya and it goes to Husband. Laya alone gets these wrong, because it reads "respect" as a nice word. The exceptions are perks ("Who should *pick* the movie?") and questions where someone else is the subject ("Who should *we* listen to?"), and those stay praise.
+- **"Who should…" questions are taunts.** When the person picked is the one who *should / needs to / has to* do something ("Who should respect the other more?", "Who needs to listen more?"), the word list overrules Laya and it goes to Shauhar. Laya alone gets these wrong, because it reads "respect" as a nice word. The exceptions are perks ("Who should *pick* the movie?") and questions where someone else is the subject ("Who should *we* listen to?"), and those stay praise.
 - **Without Laya** (the server is off or slow), the word list decides alone. If it finds no clues, the question counts as praise.
 
 <details>
@@ -124,7 +124,7 @@ const offset = direction > 0 ? mod(-angle - from, 360) : mod(from + angle, 360);
 const to     = from + direction * (turns * 360 + offset);   // turns = 5..7
 ```
 
-Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve starts fast and has a long, slow crawl at the end, so the last few ticks feel close. A test script tried 15,600 random spins, covering every Bairu/Husband mix up to 40 slices and both verdicts: **0 misses.**
+Each frame moves along `from → to` using `1 − (1 − t)⁴`. That curve starts fast and has a long, slow crawl at the end, so the last few ticks feel close. A test script tried 15,600 random spins, covering every Bairu/Shauhar mix up to 40 slices and both verdicts: **0 misses.**
 
 </details>
 
