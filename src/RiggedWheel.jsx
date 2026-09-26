@@ -48,11 +48,13 @@ const MAX_SLICES = 40;
 const QUICK_PICKS = [8, 12, 16, 20, 30, 40]; // split evenly between the two names
 const IDEAS_SHOWN = 2; // question ideas shown per kind
 const MAX_QUESTION = 80;
+// Muted on purpose: dusty rose and slate blue are easier on the eyes than pure red/blue.
 const PALETTE = {
-  good: ['#e11d48', '#9f1239'],
-  bad: ['#3b82f6', '#1e40af'],
+  good: ['#c96b78', '#a9535f'],
+  bad: ['#6a86b8', '#4d6795'],
 };
-const BULB = '#fcd34d';
+const BULB = '#f1dfae';
+const HIGHLIGHT = '#f6e7bd';
 const R = 188; // slice radius in SVG units (viewBox is 420 wide)
 const BULBS = 24;
 const FLICK_MIN = 0.3; // deg/ms a drag needs on release to count as a spin
@@ -152,15 +154,15 @@ const THEMES = {
   light: {
     scheme: 'light',
     background:
-      'radial-gradient(circle at 12% 0%, #dbeafe 0, transparent 42%), radial-gradient(circle at 88% 100%, #ffe4e6 0, transparent 45%), #f8fafc',
-    rim: '#0f172a',
+      'radial-gradient(circle at 12% 0%, #e8edf5 0, transparent 45%), radial-gradient(circle at 88% 100%, #f5e9ea 0, transparent 45%), #f7f6f3',
+    rim: '#2d313b',
     text: 'text-slate-800',
     stage: 'bg-white/70 ring-slate-900/5 shadow-xl',
     card: 'bg-white ring-slate-900/5 shadow-lg',
     muted: 'text-slate-500',
     subtle: 'text-slate-400',
     input:
-      'border-slate-200 bg-slate-50 text-slate-800 placeholder:text-slate-400 focus:border-rose-400 focus:bg-white focus:ring-rose-100',
+      'border-slate-200 bg-slate-50 text-slate-800 placeholder:text-slate-400 focus:border-[#c96b78] focus:bg-white focus:ring-[#c96b78]/15',
     well: 'bg-slate-50 ring-slate-200',
     stepBtn: 'text-slate-500 hover:bg-white hover:text-slate-900',
     seg: 'bg-slate-100',
@@ -168,29 +170,30 @@ const THEMES = {
     segOff: 'text-slate-500 hover:text-slate-800',
     iconBtn: 'bg-white text-slate-500 ring-slate-900/5 hover:text-slate-900',
     chip: 'bg-slate-100 text-slate-600',
-    goodChip: 'bg-rose-50 text-rose-700 ring-rose-200',
-    badChip: 'bg-blue-50 text-blue-700 ring-blue-200',
+    goodChip: 'bg-[#f6eaec] text-[#8f4450] ring-[#ebd4d8]',
+    badChip: 'bg-[#e9eef6] text-[#3f5783] ring-[#d4dcea]',
     idea: 'bg-slate-50 text-slate-600 ring-slate-200 hover:bg-white hover:text-slate-900',
     verdict: 'bg-white/80 ring-slate-900/10 text-slate-600',
     verdictBtn: 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
     copyBtn: 'bg-slate-900 hover:bg-slate-700',
-    shareBtn: 'bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100',
+    shareBtn: 'bg-[#f6eaec] text-[#8f4450] ring-[#ebd4d8] hover:bg-[#f1dfe2]',
     switchOff: 'bg-slate-300',
-    focusRing: 'focus-visible:ring-rose-200',
+    focusRing: 'focus-visible:ring-[#c96b78]/30',
+    accentText: 'text-[#a9535f]',
     hub: 'bg-white ring-slate-900',
   },
   dark: {
     scheme: 'dark',
     background:
-      'radial-gradient(circle at 12% 0%, rgba(59,130,246,.2) 0, transparent 42%), radial-gradient(circle at 88% 100%, rgba(225,29,72,.18) 0, transparent 45%), #0b1120',
-    rim: '#020617',
+      'radial-gradient(circle at 12% 0%, rgba(106,134,184,.09) 0, transparent 45%), radial-gradient(circle at 88% 100%, rgba(201,107,120,.07) 0, transparent 45%), #111319',
+    rim: '#0b0d12',
     text: 'text-slate-100',
-    stage: 'bg-slate-900/70 ring-white/10 shadow-xl shadow-black/30',
-    card: 'bg-slate-900 ring-white/10 shadow-lg shadow-black/20',
+    stage: 'bg-[#181b22]/80 ring-white/[0.07] shadow-xl shadow-black/30',
+    card: 'bg-[#181b22] ring-white/[0.07] shadow-lg shadow-black/20',
     muted: 'text-slate-400',
     subtle: 'text-slate-500',
     input:
-      'border-slate-700 bg-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-rose-400 focus:bg-slate-800 focus:ring-rose-500/20',
+      'border-slate-700 bg-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-[#c96b78] focus:bg-slate-800 focus:ring-[#c96b78]/20',
     well: 'bg-slate-800/60 ring-slate-700',
     stepBtn: 'text-slate-400 hover:bg-slate-700 hover:text-white',
     seg: 'bg-slate-800',
@@ -198,15 +201,16 @@ const THEMES = {
     segOff: 'text-slate-400 hover:text-slate-100',
     iconBtn: 'bg-slate-800 text-slate-300 ring-white/10 hover:text-white',
     chip: 'bg-slate-800 text-slate-300',
-    goodChip: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',
-    badChip: 'bg-blue-500/15 text-blue-300 ring-blue-500/30',
+    goodChip: 'bg-[#c96b78]/15 text-[#e2a7b0] ring-[#c96b78]/25',
+    badChip: 'bg-[#6a86b8]/15 text-[#aabcdc] ring-[#6a86b8]/25',
     idea: 'bg-slate-800/60 text-slate-300 ring-slate-700 hover:bg-slate-800 hover:text-white',
     verdict: 'bg-slate-800/80 ring-white/10 text-slate-300',
     verdictBtn: 'text-slate-400 hover:bg-slate-700 hover:text-white',
     copyBtn: 'bg-slate-700 hover:bg-slate-600',
-    shareBtn: 'bg-rose-500/15 text-rose-300 ring-rose-500/30 hover:bg-rose-500/25',
+    shareBtn: 'bg-[#c96b78]/15 text-[#e2a7b0] ring-[#c96b78]/25 hover:bg-[#c96b78]/25',
     switchOff: 'bg-slate-600',
-    focusRing: 'focus-visible:ring-rose-500/40',
+    focusRing: 'focus-visible:ring-[#c96b78]/40',
+    accentText: 'text-[#e2a7b0]',
     hub: 'bg-slate-100 ring-slate-950',
   },
 };
@@ -657,7 +661,7 @@ export default function RiggedWheel() {
     const base = { disableForReducedMotion: true, zIndex: 50 };
     if (verdict === 'credit') {
       playFanfare();
-      const colors = [PALETTE.good[0], '#fb7185', BULB, '#ffffff'];
+      const colors = [...PALETTE.good, '#e2a7b0', BULB, PALETTE.bad[0]];
       confetti({ ...base, colors, particleCount: 140, spread: 90, startVelocity: 45, origin: { y: 0.55 } });
       timersRef.current.push(
         setTimeout(() => {
@@ -832,7 +836,7 @@ export default function RiggedWheel() {
         {/* Header */}
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-600/30">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#b5586b] text-white shadow-md shadow-black/10">
               <Trophy className="h-5 w-5" />
             </div>
             <div>
@@ -865,7 +869,7 @@ export default function RiggedWheel() {
           <section
             className={`flex flex-col items-center rounded-[2rem] px-5 py-8 ring-1 backdrop-blur transition-colors sm:px-10 sm:py-10 ${t.stage}`}
           >
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-rose-500">The question</p>
+            <p className={`text-xs font-bold uppercase tracking-[0.2em] ${t.accentText}`}>The question</p>
             <h2 className="mt-2 max-w-xl text-balance text-center text-3xl font-black tracking-tight sm:text-4xl">
               {shownQuestion}
             </h2>
@@ -923,7 +927,7 @@ export default function RiggedWheel() {
                     <path
                       d={slicePath(landedSlice.start, landedSlice.end, R)}
                       fill="none"
-                      stroke="#fde047"
+                      stroke={HIGHLIGHT}
                       strokeWidth="6"
                       strokeLinejoin="round"
                       className="animate-pulse"
@@ -955,7 +959,7 @@ export default function RiggedWheel() {
                 className={`absolute left-1/2 top-1/2 grid h-[20%] w-[20%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full shadow-lg ring-4 transition hover:scale-105 disabled:hover:scale-100 ${t.hub}`}
               >
                 <span
-                  className={`text-[clamp(0.7rem,3.4vw,1.1rem)] font-black tracking-wider text-rose-600 ${spinning ? 'animate-pulse' : ''}`}
+                  className={`text-[clamp(0.7rem,3.4vw,1.1rem)] font-black tracking-wider text-[#a9535f] ${spinning ? 'animate-pulse' : ''}`}
                 >
                   SPIN
                 </span>
@@ -979,7 +983,7 @@ export default function RiggedWheel() {
               type="button"
               onClick={() => requestSpin()}
               disabled={spinning || waitingForLaya}
-              className={`group mt-10 inline-flex items-center gap-2 rounded-full bg-rose-600 px-10 py-4 text-lg font-black uppercase tracking-wider text-white shadow-lg shadow-rose-600/30 transition hover:-translate-y-0.5 hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-4 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-rose-600 ${t.focusRing}`}
+              className={`group mt-10 inline-flex items-center gap-2 rounded-full bg-[#b5586b] px-10 py-4 text-lg font-black uppercase tracking-wider text-white shadow-md shadow-black/15 transition hover:-translate-y-0.5 hover:bg-[#9f4b5d] focus-visible:outline-none focus-visible:ring-4 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-[#b5586b] ${t.focusRing}`}
             >
               <RotateCw className={`h-5 w-5 ${spinning ? 'animate-spin' : 'transition-transform group-hover:rotate-90'}`} />
               {waitingForLaya ? 'Get ready…' : spinning ? 'Spinning…' : tally.spins ? 'Spin again' : 'Spin'}
@@ -1057,7 +1061,7 @@ export default function RiggedWheel() {
                           type="button"
                           disabled={spinning}
                           onClick={() => setIdeas(pickIdeas())}
-                          className="inline-flex items-center gap-1 font-semibold transition hover:text-rose-500 disabled:cursor-not-allowed"
+                          className="inline-flex items-center gap-1 font-semibold transition hover:text-[#b5586b] disabled:cursor-not-allowed"
                         >
                           <Dices className="h-3.5 w-3.5" />
                           More ideas
@@ -1141,7 +1145,7 @@ export default function RiggedWheel() {
                     type="button"
                     onClick={resetSettings}
                     disabled={spinning}
-                    className={`inline-flex items-center gap-1.5 text-xs font-semibold transition hover:text-rose-500 disabled:cursor-not-allowed ${t.subtle}`}
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold transition hover:text-[#b5586b] disabled:cursor-not-allowed ${t.subtle}`}
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Reset to defaults
@@ -1169,7 +1173,7 @@ export default function RiggedWheel() {
                   onClick={copyLink}
                   aria-label="Copy link"
                   className={`grid w-11 shrink-0 place-items-center rounded-xl text-white transition ${
-                    copied ? 'bg-emerald-500' : t.copyBtn
+                    copied ? 'bg-[#5f9a82]' : t.copyBtn
                   }`}
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -1199,7 +1203,7 @@ export default function RiggedWheel() {
               type="button"
               onClick={() => setRiggedOpen((o) => !o)}
               aria-expanded={riggedOpen}
-              className="font-semibold underline decoration-dotted underline-offset-2 transition hover:text-rose-500"
+              className="font-semibold underline decoration-dotted underline-offset-2 transition hover:text-[#b5586b]"
             >
               Rigged?
             </button>
