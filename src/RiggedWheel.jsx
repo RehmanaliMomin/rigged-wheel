@@ -40,8 +40,8 @@ const PRIVILEGE_WEIGHT = 2; // "who should pick…" is a perk
 
 const DEFAULTS = {
   question: 'Who is always right?',
-  good: 'Bairu', // gets the credit
-  bad: 'Shauhar', // gets the blame
+  good: 'Wife', // gets the credit
+  bad: 'Husband', // gets the blame
   goodCount: 8, // an even 50/50 wheel looks fair; it still always lands on the right person
   badCount: 8,
 };
@@ -53,7 +53,7 @@ const MAX_QUESTION = 80;
 const PALETTE = {
   good: '#c96b78', // dusty rose
   bad: '#6a86b8', // slate blue
-}
+};
 const BULB = '#f1dfae';
 const HIGHLIGHT = '#f6e7bd';
 const R = 188; // slice radius in SVG units (viewBox is 420 wide)
@@ -359,7 +359,7 @@ export default function RiggedWheel() {
   const [panelOpen, setPanelOpen] = useState(!initial.fromLink);
   const [spinning, setSpinning] = useState(false);
   const [waitingForLaya, setWaitingForLaya] = useState(false);
-  const [result, setResult] = useState(null); // { verdict, index, answer, other, quip }
+  const [result, setResult] = useState(null); // { verdict, role, index, answer, other, pct, quip }
   const [tally, setTally] = useState({ spins: 0, good: 0, bad: 0 });
   const [muted, setMuted] = useState(false);
   const [copied, setCopied] = useState(false);
